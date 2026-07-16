@@ -1,5 +1,5 @@
 # orders
 
-Placeholder for future POS and restaurant order workflows.
+Owns POS cart, order confirmation, bill-ready order snapshots, and kitchen queue workflow.
 
-No order APIs or database tables are implemented yet.
+This module does not implement billing, payments, reports, dashboard, or notifications.

@@ -97,6 +97,35 @@ enum MenuAvailabilityType {
   CUSTOM_TIME
 }
 
+enum CartStatus {
+  ACTIVE
+  CONFIRMED
+  CLEARED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum OrderSource {
+  CUSTOMER_APP
+  MANAGER
+  RECEPTION
+}
+
+enum KitchenQueueStatus {
+  WAITING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   fullName      String         @db.VarChar(120)
@@ -114,6 +143,8 @@ model User {
   updatedBy     String?        @db.Uuid
   refreshTokens RefreshToken[]
   bookings      Booking[]
+  cartItems     CartItem[]
+  orders        Order[]
 
   @@index([role])
   @@index([status])
@@ -272,6 +303,8 @@ model Booking {
   customer      User          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   table         DiningTable?  @relation(fields: [tableId], references: [id], onDelete: Restrict)
   room          Room?         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  carts         Cart[]
+  orders        Order[]
 
   @@index([customerId])
   @@index([bookingType])
@@ -331,6 +364,8 @@ model MenuItem {
   variants           MenuItemVariant[]
   addOns             MenuItemAddOn[]
   availability       MenuAvailability[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
 
   @@unique([categoryId, name])
   @@index([categoryId])
@@ -353,6 +388,8 @@ model MenuItemVariant {
   createdBy       String?          @db.Uuid
   updatedBy       String?          @db.Uuid
   menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
 
   @@unique([menuItemId, name])
   @@index([menuItemId])
@@ -373,6 +410,8 @@ model MenuItemAddOn {
   createdBy       String?          @db.Uuid
   updatedBy       String?          @db.Uuid
   menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  cartAddOns      CartItemAddOn[]
+  orderAddOns     OrderItemAddOn[]
 
   @@unique([menuItemId, name])
   @@index([menuItemId])
@@ -398,4 +437,179 @@ model MenuAvailability {
   @@index([type])
   @@index([deletedAt])
   @@map("menu_availability")
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  bookingId String     @db.Uuid
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  createdBy String?    @db.Uuid
+  updatedBy String?    @db.Uuid
+  booking   Booking    @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  items     CartItem[]
+  order     Order?
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("carts")
+}
+
+model CartItem {
+  id                   String           @id @default(uuid()) @db.Uuid
+  cartId               String           @db.Uuid
+  menuItemId           String           @db.Uuid
+  variantId            String?          @db.Uuid
+  quantity             Int
+  unitPriceSnapshot    Decimal          @db.Decimal(10, 2)
+  variantPriceSnapshot Decimal          @default(0) @db.Decimal(10, 2)
+  discountSnapshot     Decimal          @default(0) @db.Decimal(10, 2)
+  lineTotalSnapshot    Decimal          @db.Decimal(10, 2)
+  specialNotes         String?          @db.Text
+  orderedById          String           @db.Uuid
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+  createdBy            String?          @db.Uuid
+  updatedBy            String?          @db.Uuid
+  cart                 Cart             @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItem             MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  variant              MenuItemVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  orderedBy            User             @relation(fields: [orderedById], references: [id], onDelete: Restrict)
+  addOns               CartItemAddOn[]
+
+  @@index([cartId])
+  @@index([menuItemId])
+  @@index([variantId])
+  @@index([orderedById])
+  @@index([deletedAt])
+  @@map("cart_items")
+}
+
+model CartItemAddOn {
+  id            String        @id @default(uuid()) @db.Uuid
+  cartItemId    String        @db.Uuid
+  addOnId       String        @db.Uuid
+  priceSnapshot Decimal       @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+  createdBy     String?       @db.Uuid
+  updatedBy     String?       @db.Uuid
+  cartItem      CartItem      @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  addOn         MenuItemAddOn @relation(fields: [addOnId], references: [id], onDelete: Restrict)
+
+  @@unique([cartItemId, addOnId])
+  @@index([cartItemId])
+  @@index([addOnId])
+  @@index([deletedAt])
+  @@map("cart_item_addons")
+}
+
+model Order {
+  id               String        @id @default(uuid()) @db.Uuid
+  orderNumber      String        @unique @db.VarChar(40)
+  bookingId        String        @db.Uuid
+  cartId           String        @unique @db.Uuid
+  orderedById      String        @db.Uuid
+  status           OrderStatus   @default(CONFIRMED)
+  source           OrderSource
+  subtotalSnapshot Decimal       @db.Decimal(10, 2)
+  discountSnapshot Decimal       @default(0) @db.Decimal(10, 2)
+  totalSnapshot    Decimal       @db.Decimal(10, 2)
+  confirmedAt      DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+  createdBy        String?       @db.Uuid
+  updatedBy        String?       @db.Uuid
+  booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  cart             Cart          @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  orderedBy        User          @relation(fields: [orderedById], references: [id], onDelete: Restrict)
+  items            OrderItem[]
+  kitchenQueue     KitchenQueue?
+
+  @@index([bookingId])
+  @@index([orderedById])
+  @@index([status])
+  @@index([source])
+  @@index([confirmedAt])
+  @@index([deletedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                   String           @id @default(uuid()) @db.Uuid
+  orderId              String           @db.Uuid
+  menuItemId           String           @db.Uuid
+  variantId            String?          @db.Uuid
+  itemNameSnapshot     String           @db.VarChar(150)
+  variantNameSnapshot  String?          @db.VarChar(80)
+  quantity             Int
+  unitPriceSnapshot    Decimal          @db.Decimal(10, 2)
+  variantPriceSnapshot Decimal          @default(0) @db.Decimal(10, 2)
+  discountSnapshot     Decimal          @default(0) @db.Decimal(10, 2)
+  lineTotalSnapshot    Decimal          @db.Decimal(10, 2)
+  specialNotes         String?          @db.Text
+  orderedById          String           @db.Uuid
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+  createdBy            String?          @db.Uuid
+  updatedBy            String?          @db.Uuid
+  order                Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem             MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  variant              MenuItemVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  addOns               OrderItemAddOn[]
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([variantId])
+  @@index([orderedById])
+  @@index([deletedAt])
+  @@map("order_items")
+}
+
+model OrderItemAddOn {
+  id            String        @id @default(uuid()) @db.Uuid
+  orderItemId   String        @db.Uuid
+  addOnId       String        @db.Uuid
+  nameSnapshot  String        @db.VarChar(80)
+  priceSnapshot Decimal       @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+  createdBy     String?       @db.Uuid
+  updatedBy     String?       @db.Uuid
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addOn         MenuItemAddOn @relation(fields: [addOnId], references: [id], onDelete: Restrict)
+
+  @@index([orderItemId])
+  @@index([addOnId])
+  @@index([deletedAt])
+  @@map("order_item_addons")
+}
+
+model KitchenQueue {
+  id        String             @id @default(uuid()) @db.Uuid
+  orderId   String             @unique @db.Uuid
+  status    KitchenQueueStatus @default(WAITING)
+  queuedAt  DateTime           @default(now())
+  startedAt DateTime?
+  readyAt   DateTime?
+  servedAt  DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  deletedAt DateTime?
+  createdBy String?            @db.Uuid
+  updatedBy String?            @db.Uuid
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([queuedAt])
+  @@index([deletedAt])
+  @@map("kitchen_queue")
 }
