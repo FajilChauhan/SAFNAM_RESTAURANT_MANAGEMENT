@@ -1,5 +1,5 @@
 # payments
 
-Placeholder for future payment processing workflows.
+Owns payment recording, split/partial payment support, refunds, and receipt-ready payment data.
 
-No payment APIs or database tables are implemented yet.
+This module does not implement reports, dashboard, or external payment gateway processing.
