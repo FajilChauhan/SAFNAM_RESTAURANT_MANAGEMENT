@@ -1,6 +1,7 @@
 // Converts thrown errors into one consistent API error response.
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
+import { ERROR_CODES } from "../constants/errorCodes.js";
 import { ApiError } from "../utils/ApiError.js";
 import { logger } from "../utils/logger.js";
 
@@ -9,7 +10,10 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
     res.status(400).json({
       success: false,
       message: "Validation failed",
-      errors: error.flatten().fieldErrors,
+      error: {
+        code: ERROR_CODES.VALIDATION_ERROR,
+        details: error.flatten().fieldErrors,
+      },
     });
     return;
   }
@@ -24,5 +28,9 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
   res.status(statusCode).json({
     success: false,
     message,
+    error: {
+      code: error instanceof ApiError ? error.code : ERROR_CODES.INTERNAL_ERROR,
+      details: error instanceof ApiError ? error.details : undefined,
+    },
   });
 };

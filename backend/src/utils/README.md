@@ -2,4 +2,4 @@
 
 Stores reusable framework-agnostic helpers.
 
-This folder currently contains API response/error helpers, async handler support, logging, and placeholders for auth/date/pagination utilities.
+This folder contains API response/error helpers, async handler support, logging, JWT/password helpers, pagination, search, filtering, query parsing, validation, and date utilities.

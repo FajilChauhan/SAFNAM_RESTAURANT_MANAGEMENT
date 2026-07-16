@@ -44,6 +44,7 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
       status: user.status,
       avatarUrl: user.avatarUrl,
     };
+    req.context.user = req.user;
 
     next();
   } catch (error) {

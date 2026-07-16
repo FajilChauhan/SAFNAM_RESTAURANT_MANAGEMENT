@@ -1,5 +1,5 @@
 # lib
 
-Holds thin wrappers around third-party libraries when the project needs one consistent internal interface.
+Holds base classes and thin wrappers around shared infrastructure patterns.
 
-Keep this folder small and avoid placing business logic here.
+Future modules can extend `BaseRepository`, `BaseService`, and `BaseController` to reuse common behavior while keeping business rules inside their own module.

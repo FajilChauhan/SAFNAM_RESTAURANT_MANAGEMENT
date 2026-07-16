@@ -1,2 +1,55 @@
-// Reserved for future enums and immutable application constants.
+// Centralizes application-wide constants shared by future modules.
 export const APP_NAME = "SAFNAM Restaurant";
+
+export const USER_ROLES = {
+  CUSTOMER: "CUSTOMER",
+  RECEPTION: "RECEPTION",
+  KITCHEN: "KITCHEN",
+  MANAGER: "MANAGER",
+  ADMIN: "ADMIN",
+} as const;
+
+export const USER_STATUSES = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  BLOCKED: "BLOCKED",
+} as const;
+
+export const BOOKING_STATUSES = {
+  PENDING: "PENDING",
+  CONFIRMED: "CONFIRMED",
+  CHECKED_IN: "CHECKED_IN",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+} as const;
+
+export const ORDER_STATUSES = {
+  DRAFT: "DRAFT",
+  PLACED: "PLACED",
+  PREPARING: "PREPARING",
+  READY: "READY",
+  SERVED: "SERVED",
+  CANCELLED: "CANCELLED",
+} as const;
+
+export const PAYMENT_STATUSES = {
+  PENDING: "PENDING",
+  PAID: "PAID",
+  FAILED: "FAILED",
+  REFUNDED: "REFUNDED",
+} as const;
+
+export const TABLE_STATUSES = {
+  AVAILABLE: "AVAILABLE",
+  OCCUPIED: "OCCUPIED",
+  RESERVED: "RESERVED",
+  CLEANING: "CLEANING",
+} as const;
+
+export const ROOM_STATUSES = {
+  AVAILABLE: "AVAILABLE",
+  OCCUPIED: "OCCUPIED",
+  RESERVED: "RESERVED",
+  MAINTENANCE: "MAINTENANCE",
+  CLEANING: "CLEANING",
+} as const;

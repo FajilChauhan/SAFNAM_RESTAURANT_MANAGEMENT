@@ -1,4 +1,5 @@
 import type { UserRole, UserStatus } from "@prisma/client";
+import type { RequestContext } from "./request.types.js";
 
 declare global {
   namespace Express {
@@ -14,6 +15,7 @@ declare global {
 
     interface Request {
       user?: User;
+      context: RequestContext;
     }
   }
 }
