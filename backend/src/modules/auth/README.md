@@ -1,5 +1,5 @@
 # auth
 
-Placeholder for future authentication and authorization functionality.
+Owns authentication use cases for SAFNAM Restaurant.
 
-No authentication code is implemented yet.
+This module contains controller, service, repository, validators, DTOs, route definitions, token middleware, and auth-specific rate limiting.
