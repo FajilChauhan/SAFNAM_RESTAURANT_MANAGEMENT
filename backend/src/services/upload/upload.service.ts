@@ -1,7 +1,11 @@
 import multer from "multer";
+import fs from "node:fs";
+import path from "node:path";
 import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { ApiError } from "../../utils/ApiError.js";
 import type { UploadConfig } from "./upload.types.js";
+
+const UPLOAD_ROOT = "uploads";
 
 const createStorage = (destination: UploadConfig["destination"]) => {
   if (destination === "memory") {
@@ -9,7 +13,11 @@ const createStorage = (destination: UploadConfig["destination"]) => {
   }
 
   return multer.diskStorage({
-    destination: "uploads",
+    destination: (_req, _file, callback) => {
+      const uploadPath = path.join(UPLOAD_ROOT, "menu");
+      fs.mkdirSync(uploadPath, { recursive: true });
+      callback(null, uploadPath);
+    },
     filename: (_req, file, callback) => {
       const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
       callback(null, `${Date.now()}-${safeName}`);
@@ -43,3 +51,11 @@ export class UploadService {
 }
 
 export const uploadService = new UploadService();
+
+export const getUploadedFileUrl = (file?: Express.Multer.File) => {
+  if (!file?.filename) {
+    return undefined;
+  }
+
+  return `/uploads/menu/${file.filename}`;
+};

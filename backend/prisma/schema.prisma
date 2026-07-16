@@ -71,6 +71,32 @@ enum BookingSource {
   ADMIN
 }
 
+enum MenuEntityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum FoodType {
+  VEG
+  NON_VEG
+}
+
+enum SpicyLevel {
+  NONE
+  MILD
+  MEDIUM
+  HOT
+  EXTRA_HOT
+}
+
+enum MenuAvailabilityType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  WHOLE_DAY
+  CUSTOM_TIME
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   fullName      String         @db.VarChar(120)
@@ -112,22 +138,23 @@ model RefreshToken {
 }
 
 model Restaurant {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(150)
-  logoUrl     String?  @db.VarChar(500)
-  description String?  @db.Text
-  phone       String   @db.VarChar(20)
-  email       String?  @db.VarChar(255)
-  address     String   @db.Text
-  openingTime String   @db.VarChar(5)
-  closingTime String   @db.VarChar(5)
-  gstNumber   String?  @db.VarChar(30)
-  currency    String   @default("INR") @db.VarChar(3)
-  timezone    String   @default("Asia/Kolkata") @db.VarChar(80)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String         @db.VarChar(150)
+  logoUrl     String?        @db.VarChar(500)
+  description String?        @db.Text
+  phone       String         @db.VarChar(20)
+  email       String?        @db.VarChar(255)
+  address     String         @db.Text
+  openingTime String         @db.VarChar(5)
+  closingTime String         @db.VarChar(5)
+  gstNumber   String?        @db.VarChar(30)
+  currency    String         @default("INR") @db.VarChar(3)
+  timezone    String         @default("Asia/Kolkata") @db.VarChar(80)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   floors      Floor[]
   rooms       Room[]
+  categories  MenuCategory[]
 
   @@index([name])
   @@index([phone])
@@ -227,4 +254,101 @@ model Booking {
   @@index([tableId, startAt, endAt])
   @@index([roomId, startAt, endAt])
   @@map("bookings")
+}
+
+model MenuCategory {
+  id           String           @id @default(uuid()) @db.Uuid
+  restaurantId String           @db.Uuid
+  name         String           @db.VarChar(100)
+  description  String?          @db.Text
+  displayOrder Int              @default(0)
+  status       MenuEntityStatus @default(ACTIVE)
+  imageUrl     String?          @db.VarChar(500)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([status])
+  @@index([displayOrder])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id                 String             @id @default(uuid()) @db.Uuid
+  categoryId         String             @db.Uuid
+  name               String             @db.VarChar(150)
+  description        String?            @db.Text
+  price              Decimal            @db.Decimal(10, 2)
+  preparationTimeMin Int
+  imageUrl           String?            @db.VarChar(500)
+  foodType           FoodType
+  spicyLevel         SpicyLevel         @default(NONE)
+  status             MenuEntityStatus   @default(ACTIVE)
+  isTodaySpecial     Boolean            @default(false)
+  isAvailable        Boolean            @default(true)
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  category           MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants           MenuItemVariant[]
+  addOns             MenuItemAddOn[]
+  availability       MenuAvailability[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+  @@index([status])
+  @@index([isTodaySpecial])
+  @@index([isAvailable])
+  @@index([deletedAt])
+  @@map("menu_items")
+}
+
+model MenuItemVariant {
+  id              String           @id @default(uuid()) @db.Uuid
+  menuItemId      String           @db.Uuid
+  name            String           @db.VarChar(80)
+  priceDifference Decimal          @default(0) @db.Decimal(10, 2)
+  status          MenuEntityStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, name])
+  @@index([menuItemId])
+  @@index([status])
+  @@map("menu_item_variants")
+}
+
+model MenuItemAddOn {
+  id              String           @id @default(uuid()) @db.Uuid
+  menuItemId      String           @db.Uuid
+  name            String           @db.VarChar(80)
+  additionalPrice Decimal          @db.Decimal(10, 2)
+  status          MenuEntityStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, name])
+  @@index([menuItemId])
+  @@index([status])
+  @@map("menu_item_addons")
+}
+
+model MenuAvailability {
+  id         String               @id @default(uuid()) @db.Uuid
+  menuItemId String               @db.Uuid
+  type       MenuAvailabilityType
+  startTime  String?              @db.VarChar(5)
+  endTime    String?              @db.VarChar(5)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  menuItem   MenuItem             @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@index([type])
+  @@map("menu_availability")
 }

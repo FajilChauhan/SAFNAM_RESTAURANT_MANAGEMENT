@@ -5,6 +5,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "node:path";
 import { corsOptions } from "./config/cors.config.js";
 import { env } from "./config/env.config.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
@@ -20,6 +21,7 @@ export const createApp = () => {
   app.use(cors(corsOptions));
   app.use(compression());
   app.use(cookieParser());
+  app.use("/uploads", express.static(path.resolve("uploads")));
   app.use(express.json({ limit: env.JSON_LIMIT }));
   app.use(express.urlencoded({ extended: true }));
   app.use(requestContextMiddleware);

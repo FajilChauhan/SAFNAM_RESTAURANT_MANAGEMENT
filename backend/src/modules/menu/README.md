@@ -1,5 +1,5 @@
 # menu
 
-Placeholder for future menu item and category management.
+Owns production POS menu management.
 
-No menu APIs or database tables are implemented yet.
+This module manages categories, menu items, variants, add-ons, item availability, today's specials, and soft deletion.
