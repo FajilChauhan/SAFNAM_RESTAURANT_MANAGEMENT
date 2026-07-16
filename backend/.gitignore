@@ -1,0 +1,5 @@
+# Keeps generated and local-only backend files out of version control.
+node_modules
+dist
+.env.local
+*.log
