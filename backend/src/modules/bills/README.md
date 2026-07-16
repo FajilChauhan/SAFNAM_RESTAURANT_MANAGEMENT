@@ -1,5 +1,5 @@
 # bills
 
-Placeholder for future billing and invoice workflows.
+Owns invoice generation and invoice adjustments.
 
-No billing APIs or database tables are implemented yet.
+This module calculates booking invoices from served orders, room charges, manual charges, discounts, and tax. It does not implement payments, dashboard, reports, or accounting export.
