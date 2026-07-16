@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { TokenExpiredError } from "jsonwebtoken";
 import { UserStatus } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError.js";
 import { hashPassword, comparePassword } from "../../utils/password.js";
@@ -154,7 +153,7 @@ export class AuthService implements IAuthService {
 
       return payload;
     } catch (error) {
-      if (error instanceof TokenExpiredError) {
+      if (error instanceof Error && error.name === "TokenExpiredError") {
         throw new ApiError(401, "Refresh token expired");
       }
 
