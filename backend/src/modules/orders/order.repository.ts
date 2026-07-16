@@ -194,7 +194,7 @@ export class OrderRepository {
       await tx.kitchenQueue.create({
         data: {
           orderId: order.id,
-          status: KitchenQueueStatus.WAITING,
+          status: KitchenQueueStatus.PENDING,
           createdBy: input.orderedById,
         },
       });
@@ -257,7 +257,7 @@ export class OrderRepository {
 
   listKitchenQueue() {
     return prisma.kitchenQueue.findMany({
-      where: { deletedAt: null, status: { in: ["WAITING", "PREPARING", "READY"] } },
+      where: { deletedAt: null, status: { in: ["PENDING", "ACCEPTED", "PREPARING", "READY"] } },
       include: { order: { include: this.orderInclude() } },
       orderBy: { queuedAt: "asc" },
     });
@@ -268,7 +268,7 @@ export class OrderRepository {
     if (status === "READY") return KitchenQueueStatus.READY;
     if (status === "SERVED") return KitchenQueueStatus.SERVED;
     if (status === "CANCELLED") return KitchenQueueStatus.CANCELLED;
-    return KitchenQueueStatus.WAITING;
+    return KitchenQueueStatus.PENDING;
   }
 
   private cartInclude() {

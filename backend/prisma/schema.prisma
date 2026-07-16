@@ -119,11 +119,18 @@ enum OrderSource {
 }
 
 enum KitchenQueueStatus {
-  WAITING
+  PENDING
+  ACCEPTED
   PREPARING
   READY
   SERVED
   CANCELLED
+}
+
+enum KitchenPriority {
+  NORMAL
+  HIGH
+  VIP
 }
 
 model User {
@@ -594,21 +601,25 @@ model OrderItemAddOn {
 }
 
 model KitchenQueue {
-  id        String             @id @default(uuid()) @db.Uuid
-  orderId   String             @unique @db.Uuid
-  status    KitchenQueueStatus @default(WAITING)
-  queuedAt  DateTime           @default(now())
-  startedAt DateTime?
-  readyAt   DateTime?
-  servedAt  DateTime?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-  deletedAt DateTime?
-  createdBy String?            @db.Uuid
-  updatedBy String?            @db.Uuid
-  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id          String             @id @default(uuid()) @db.Uuid
+  orderId     String             @unique @db.Uuid
+  status      KitchenQueueStatus @default(PENDING)
+  priority    KitchenPriority    @default(NORMAL)
+  queuedAt    DateTime           @default(now())
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  readyAt     DateTime?
+  servedAt    DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?            @db.Uuid
+  updatedBy   String?            @db.Uuid
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([priority])
   @@index([queuedAt])
   @@index([deletedAt])
   @@map("kitchen_queue")
