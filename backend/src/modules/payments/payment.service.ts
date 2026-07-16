@@ -14,6 +14,7 @@ export class PaymentService extends BaseService {
   async create(dto: CreatePaymentDto, actor: AuthenticatedUser) {
     const invoice = this.ensureExists(await this.paymentRepository.findInvoiceById(dto.invoiceId), "Invoice not found");
     if (invoice.status === InvoiceStatus.CANCELLED) throw new ApiError(400, "Cannot pay cancelled invoice");
+    if (invoice.status === InvoiceStatus.LOCKED) throw new ApiError(400, "Cannot pay locked invoice");
     const amount = new Prisma.Decimal(dto.amount);
     if (amount.gt(invoice.balanceAmount)) throw new ApiError(400, "Payment amount cannot exceed invoice balance");
     const paidAmount = invoice.paidAmount.plus(amount);
@@ -47,6 +48,9 @@ export class PaymentService extends BaseService {
 
   async refund(paymentId: string, dto: RefundPaymentDto, actor: AuthenticatedUser) {
     const payment = this.ensureExists(await this.paymentRepository.findPaymentById(paymentId), "Payment not found");
+    if (payment.invoice.status === InvoiceStatus.LOCKED) {
+      throw new ApiError(400, "Cannot refund locked invoice");
+    }
     if (payment.status !== PaymentStatus.SUCCESS && payment.status !== PaymentStatus.PARTIALLY_REFUNDED) {
       throw new ApiError(400, "Only successful payments can be refunded");
     }

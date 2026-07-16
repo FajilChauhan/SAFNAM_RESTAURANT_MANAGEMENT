@@ -138,6 +138,7 @@ enum InvoiceStatus {
   GENERATED
   PARTIALLY_PAID
   PAID
+  LOCKED
   CANCELLED
 }
 
@@ -174,28 +175,34 @@ enum PaymentStatus {
 }
 
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  fullName      String         @db.VarChar(120)
-  phoneNumber   String         @unique @db.VarChar(20)
-  email         String?        @unique @db.VarChar(255)
-  passwordHash  String         @db.VarChar(255)
-  role          UserRole       @default(CUSTOMER)
-  status        UserStatus     @default(ACTIVE)
-  avatarUrl     String?        @db.VarChar(500)
-  lastLoginAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  deletedAt     DateTime?
-  createdBy     String?        @db.Uuid
-  updatedBy     String?        @db.Uuid
-  refreshTokens RefreshToken[]
-  bookings      Booking[]
-  cartItems     CartItem[]
-  orders        Order[]
-  payments      Payment[]
+  id                String            @id @default(uuid()) @db.Uuid
+  fullName          String            @db.VarChar(120)
+  phoneNumber       String            @unique @db.VarChar(20)
+  email             String?           @unique @db.VarChar(255)
+  passwordHash      String            @db.VarChar(255)
+  role              UserRole          @default(CUSTOMER)
+  status            UserStatus        @default(ACTIVE)
+  avatarUrl         String?           @db.VarChar(500)
+  lastLoginAt       DateTime?
+  visitCount        Int               @default(0)
+  totalSpending     Decimal           @default(0) @db.Decimal(10, 2)
+  lastVisitAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  createdBy         String?           @db.Uuid
+  updatedBy         String?           @db.Uuid
+  refreshTokens     RefreshToken[]
+  bookings          Booking[]
+  cartItems         CartItem[]
+  orders            Order[]
+  payments          Payment[]
+  customerCheckouts CheckoutSession[] @relation("CustomerCheckouts")
+  staffCheckouts    CheckoutSession[] @relation("StaffCheckouts")
 
   @@index([role])
   @@index([status])
+  @@index([lastVisitAt])
   @@index([createdAt])
   @@index([deletedAt])
   @@map("users")
@@ -324,37 +331,38 @@ model Room {
 }
 
 model Booking {
-  id            String        @id @default(uuid()) @db.Uuid
-  bookingNumber String        @unique @db.VarChar(40)
-  customerId    String        @db.Uuid
+  id            String           @id @default(uuid()) @db.Uuid
+  bookingNumber String           @unique @db.VarChar(40)
+  customerId    String           @db.Uuid
   bookingType   BookingType
-  tableId       String?       @db.Uuid
-  roomId        String?       @db.Uuid
-  bookingDate   DateTime      @db.Date
-  startTime     String        @db.VarChar(5)
-  endTime       String        @db.VarChar(5)
+  tableId       String?          @db.Uuid
+  roomId        String?          @db.Uuid
+  bookingDate   DateTime         @db.Date
+  startTime     String           @db.VarChar(5)
+  endTime       String           @db.VarChar(5)
   startAt       DateTime
   endAt         DateTime
   members       Int
-  notes         String?       @db.Text
-  status        BookingStatus @default(PENDING)
+  notes         String?          @db.Text
+  status        BookingStatus    @default(PENDING)
   source        BookingSource
   cancelledAt   DateTime?
   checkedInAt   DateTime?
   checkedOutAt  DateTime?
   noShowAt      DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   deletedAt     DateTime?
-  createdBy     String?       @db.Uuid
-  updatedBy     String?       @db.Uuid
-  customer      User          @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  table         DiningTable?  @relation(fields: [tableId], references: [id], onDelete: Restrict)
-  room          Room?         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  createdBy     String?          @db.Uuid
+  updatedBy     String?          @db.Uuid
+  customer      User             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  table         DiningTable?     @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  room          Room?            @relation(fields: [roomId], references: [id], onDelete: Restrict)
   carts         Cart[]
   orders        Order[]
   invoice       Invoice?
   payments      Payment[]
+  checkout      CheckoutSession?
 
   @@index([customerId])
   @@index([bookingType])
@@ -670,40 +678,43 @@ model KitchenQueue {
 }
 
 model Invoice {
-  id            String        @id @default(uuid()) @db.Uuid
-  invoiceNumber String        @unique @db.VarChar(40)
-  bookingId     String        @unique @db.Uuid
-  status        InvoiceStatus @default(DRAFT)
-  foodTotal     Decimal       @default(0) @db.Decimal(10, 2)
-  roomTotal     Decimal       @default(0) @db.Decimal(10, 2)
-  extraCharges  Decimal       @default(0) @db.Decimal(10, 2)
+  id            String           @id @default(uuid()) @db.Uuid
+  invoiceNumber String           @unique @db.VarChar(40)
+  bookingId     String           @unique @db.Uuid
+  status        InvoiceStatus    @default(DRAFT)
+  foodTotal     Decimal          @default(0) @db.Decimal(10, 2)
+  roomTotal     Decimal          @default(0) @db.Decimal(10, 2)
+  extraCharges  Decimal          @default(0) @db.Decimal(10, 2)
   discountType  DiscountType?
-  discountValue Decimal       @default(0) @db.Decimal(10, 2)
-  discountTotal Decimal       @default(0) @db.Decimal(10, 2)
-  cgstRate      Decimal       @default(0) @db.Decimal(5, 2)
-  sgstRate      Decimal       @default(0) @db.Decimal(5, 2)
-  igstRate      Decimal       @default(0) @db.Decimal(5, 2)
-  cgstAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  sgstAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  igstAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  taxTotal      Decimal       @default(0) @db.Decimal(10, 2)
-  grandTotal    Decimal       @default(0) @db.Decimal(10, 2)
-  paidAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  balanceAmount Decimal       @default(0) @db.Decimal(10, 2)
+  discountValue Decimal          @default(0) @db.Decimal(10, 2)
+  discountTotal Decimal          @default(0) @db.Decimal(10, 2)
+  cgstRate      Decimal          @default(0) @db.Decimal(5, 2)
+  sgstRate      Decimal          @default(0) @db.Decimal(5, 2)
+  igstRate      Decimal          @default(0) @db.Decimal(5, 2)
+  cgstAmount    Decimal          @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal          @default(0) @db.Decimal(10, 2)
+  igstAmount    Decimal          @default(0) @db.Decimal(10, 2)
+  taxTotal      Decimal          @default(0) @db.Decimal(10, 2)
+  grandTotal    Decimal          @default(0) @db.Decimal(10, 2)
+  paidAmount    Decimal          @default(0) @db.Decimal(10, 2)
+  balanceAmount Decimal          @default(0) @db.Decimal(10, 2)
   generatedAt   DateTime?
+  lockedAt      DateTime?
   cancelledAt   DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   deletedAt     DateTime?
-  createdBy     String?       @db.Uuid
-  updatedBy     String?       @db.Uuid
-  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  createdBy     String?          @db.Uuid
+  updatedBy     String?          @db.Uuid
+  booking       Booking          @relation(fields: [bookingId], references: [id], onDelete: Restrict)
   items         InvoiceItem[]
   payments      Payment[]
+  checkout      CheckoutSession?
 
   @@index([bookingId])
   @@index([status])
   @@index([generatedAt])
+  @@index([lockedAt])
   @@index([deletedAt])
   @@map("invoices")
 }
@@ -784,4 +795,30 @@ model PaymentRefund {
   @@index([refundedAt])
   @@index([deletedAt])
   @@map("payment_refunds")
+}
+
+model CheckoutSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  checkoutNumber String    @unique @db.VarChar(40)
+  bookingId      String    @unique @db.Uuid
+  invoiceId      String    @unique @db.Uuid
+  customerId     String    @db.Uuid
+  checkedOutById String    @db.Uuid
+  invoiceTotal   Decimal   @db.Decimal(10, 2)
+  checkedOutAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  createdBy      String?   @db.Uuid
+  updatedBy      String?   @db.Uuid
+  booking        Booking   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  customer       User      @relation("CustomerCheckouts", fields: [customerId], references: [id], onDelete: Restrict)
+  checkedOutBy   User      @relation("StaffCheckouts", fields: [checkedOutById], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([checkedOutById])
+  @@index([checkedOutAt])
+  @@index([deletedAt])
+  @@map("checkout_sessions")
 }

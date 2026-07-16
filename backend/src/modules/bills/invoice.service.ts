@@ -6,7 +6,7 @@ import type { AddInvoiceChargeDto, GenerateInvoiceDto, UpdateDiscountDto } from 
 import { InvoiceRepository } from "./invoice.repository.js";
 import type { InvoiceSummary } from "./types/invoice.types.js";
 
-const PAID_LOCKED_STATUSES: InvoiceStatus[] = ["PARTIALLY_PAID", "PAID"];
+const PAID_LOCKED_STATUSES: InvoiceStatus[] = ["PARTIALLY_PAID", "PAID", "LOCKED"];
 
 export class InvoiceService extends BaseService {
   constructor(private readonly invoiceRepository: InvoiceRepository) {
