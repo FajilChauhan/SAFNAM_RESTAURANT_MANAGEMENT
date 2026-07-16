@@ -14,6 +14,10 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
   REFRESH_TOKEN_COOKIE_NAME: z.string().default("safnam_refresh_token"),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(14).default(12),
+  STORAGE_PROVIDER: z.enum(["local", "cloudinary", "s3", "r2"]).default("local"),
+  UPLOAD_BASE_PATH: z.string().default("uploads"),
+  UPLOAD_PUBLIC_PATH: z.string().default("/uploads"),
+  MAX_IMAGE_SIZE_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
 });
 
 export const env = envSchema.parse(process.env);

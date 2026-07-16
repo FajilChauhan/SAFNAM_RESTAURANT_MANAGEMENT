@@ -109,12 +109,16 @@ model User {
   lastLoginAt   DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  createdBy     String?        @db.Uuid
+  updatedBy     String?        @db.Uuid
   refreshTokens RefreshToken[]
   bookings      Booking[]
 
   @@index([role])
   @@index([status])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("users")
 }
 
@@ -128,11 +132,16 @@ model RefreshToken {
   expiresAt        DateTime
   createdAt        DateTime  @default(now())
   revokedAt        DateTime?
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  createdBy        String?   @db.Uuid
+  updatedBy        String?   @db.Uuid
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
+  @@index([deletedAt])
   @@index([userId, revokedAt, expiresAt])
   @@map("refresh_tokens")
 }
@@ -152,12 +161,16 @@ model Restaurant {
   timezone    String         @default("Asia/Kolkata") @db.VarChar(80)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?        @db.Uuid
+  updatedBy   String?        @db.Uuid
   floors      Floor[]
   rooms       Room[]
   categories  MenuCategory[]
 
   @@index([name])
   @@index([phone])
+  @@index([deletedAt])
   @@map("restaurants")
 }
 
@@ -170,6 +183,9 @@ model Floor {
   status       FloorStatus   @default(ACTIVE)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?       @db.Uuid
+  updatedBy    String?       @db.Uuid
   restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   tables       DiningTable[]
 
@@ -177,6 +193,7 @@ model Floor {
   @@index([restaurantId])
   @@index([status])
   @@index([displayOrder])
+  @@index([deletedAt])
   @@map("floors")
 }
 
@@ -190,12 +207,16 @@ model DiningTable {
   qrCodeUrl   String?     @db.VarChar(500)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?     @db.Uuid
+  updatedBy   String?     @db.Uuid
   floor       Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
   bookings    Booking[]
 
   @@index([floorId])
   @@index([status])
   @@index([capacity])
+  @@index([deletedAt])
   @@map("tables")
 }
 
@@ -210,12 +231,16 @@ model Room {
   status       RoomStatus @default(AVAILABLE)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?    @db.Uuid
+  updatedBy    String?    @db.Uuid
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   bookings     Booking[]
 
   @@index([restaurantId])
   @@index([status])
   @@index([roomType])
+  @@index([deletedAt])
   @@map("rooms")
 }
 
@@ -241,6 +266,9 @@ model Booking {
   noShowAt      DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+  createdBy     String?       @db.Uuid
+  updatedBy     String?       @db.Uuid
   customer      User          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   table         DiningTable?  @relation(fields: [tableId], references: [id], onDelete: Restrict)
   room          Room?         @relation(fields: [roomId], references: [id], onDelete: Restrict)
@@ -253,6 +281,7 @@ model Booking {
   @@index([startAt, endAt])
   @@index([tableId, startAt, endAt])
   @@index([roomId, startAt, endAt])
+  @@index([deletedAt])
   @@map("bookings")
 }
 
@@ -266,6 +295,9 @@ model MenuCategory {
   imageUrl     String?          @db.VarChar(500)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?          @db.Uuid
+  updatedBy    String?          @db.Uuid
   restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   items        MenuItem[]
 
@@ -273,6 +305,7 @@ model MenuCategory {
   @@index([restaurantId])
   @@index([status])
   @@index([displayOrder])
+  @@index([deletedAt])
   @@map("menu_categories")
 }
 
@@ -292,6 +325,8 @@ model MenuItem {
   deletedAt          DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  createdBy          String?            @db.Uuid
+  updatedBy          String?            @db.Uuid
   category           MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   variants           MenuItemVariant[]
   addOns             MenuItemAddOn[]
@@ -314,11 +349,15 @@ model MenuItemVariant {
   status          MenuEntityStatus @default(ACTIVE)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?          @db.Uuid
+  updatedBy       String?          @db.Uuid
   menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@unique([menuItemId, name])
   @@index([menuItemId])
   @@index([status])
+  @@index([deletedAt])
   @@map("menu_item_variants")
 }
 
@@ -330,11 +369,15 @@ model MenuItemAddOn {
   status          MenuEntityStatus @default(ACTIVE)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?          @db.Uuid
+  updatedBy       String?          @db.Uuid
   menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@unique([menuItemId, name])
   @@index([menuItemId])
   @@index([status])
+  @@index([deletedAt])
   @@map("menu_item_addons")
 }
 
@@ -346,9 +389,13 @@ model MenuAvailability {
   endTime    String?              @db.VarChar(5)
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
+  deletedAt  DateTime?
+  createdBy  String?              @db.Uuid
+  updatedBy  String?              @db.Uuid
   menuItem   MenuItem             @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@index([menuItemId])
   @@index([type])
+  @@index([deletedAt])
   @@map("menu_availability")
 }

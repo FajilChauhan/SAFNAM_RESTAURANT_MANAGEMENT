@@ -21,7 +21,7 @@ export const createApp = () => {
   app.use(cors(corsOptions));
   app.use(compression());
   app.use(cookieParser());
-  app.use("/uploads", express.static(path.resolve("uploads")));
+  app.use(env.UPLOAD_PUBLIC_PATH, express.static(path.resolve(env.UPLOAD_BASE_PATH)));
   app.use(express.json({ limit: env.JSON_LIMIT }));
   app.use(express.urlencoded({ extended: true }));
   app.use(requestContextMiddleware);
