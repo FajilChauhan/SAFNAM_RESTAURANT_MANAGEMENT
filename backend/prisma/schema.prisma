@@ -1,5 +1,4 @@
-// Prisma schema for SAFNAM Restaurant authentication data only.
-// Business modules are intentionally excluded until their boundaries are designed.
+// Prisma schema for SAFNAM Restaurant core setup and authentication data.
 generator client {
   provider = "prisma-client-js"
 }
@@ -23,6 +22,55 @@ enum UserStatus {
   BLOCKED
 }
 
+enum FloorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TableShape {
+  SQUARE
+  RECTANGLE
+  ROUND
+  OVAL
+}
+
+enum TableStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  BILLING
+  CLEANING
+  OUT_OF_SERVICE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  CLEANING
+  OUT_OF_SERVICE
+}
+
+enum BookingType {
+  TABLE
+  ROOM
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingSource {
+  CUSTOMER_APP
+  RECEPTION
+  ADMIN
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   fullName      String         @db.VarChar(120)
@@ -36,6 +84,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  bookings      Booking[]
 
   @@index([role])
   @@index([status])
@@ -60,4 +109,122 @@ model RefreshToken {
   @@index([revokedAt])
   @@index([userId, revokedAt, expiresAt])
   @@map("refresh_tokens")
+}
+
+model Restaurant {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(150)
+  logoUrl     String?  @db.VarChar(500)
+  description String?  @db.Text
+  phone       String   @db.VarChar(20)
+  email       String?  @db.VarChar(255)
+  address     String   @db.Text
+  openingTime String   @db.VarChar(5)
+  closingTime String   @db.VarChar(5)
+  gstNumber   String?  @db.VarChar(30)
+  currency    String   @default("INR") @db.VarChar(3)
+  timezone    String   @default("Asia/Kolkata") @db.VarChar(80)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  floors      Floor[]
+  rooms       Room[]
+
+  @@index([name])
+  @@index([phone])
+  @@map("restaurants")
+}
+
+model Floor {
+  id           String        @id @default(uuid()) @db.Uuid
+  restaurantId String        @db.Uuid
+  name         String        @db.VarChar(100)
+  displayOrder Int           @default(0)
+  description  String?       @db.Text
+  status       FloorStatus   @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       DiningTable[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([status])
+  @@index([displayOrder])
+  @@map("floors")
+}
+
+model DiningTable {
+  id          String      @id @default(uuid()) @db.Uuid
+  floorId     String      @db.Uuid
+  tableNumber String      @unique @db.VarChar(30)
+  capacity    Int
+  shape       TableShape
+  status      TableStatus @default(AVAILABLE)
+  qrCodeUrl   String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  floor       Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+
+  @@index([floorId])
+  @@index([status])
+  @@index([capacity])
+  @@map("tables")
+}
+
+model Room {
+  id           String     @id @default(uuid()) @db.Uuid
+  restaurantId String     @db.Uuid
+  roomNumber   String     @unique @db.VarChar(30)
+  roomType     String     @db.VarChar(80)
+  capacity     Int
+  pricePerDay  Decimal    @db.Decimal(10, 2)
+  description  String?    @db.Text
+  status       RoomStatus @default(AVAILABLE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+
+  @@index([restaurantId])
+  @@index([status])
+  @@index([roomType])
+  @@map("rooms")
+}
+
+model Booking {
+  id            String        @id @default(uuid()) @db.Uuid
+  bookingNumber String        @unique @db.VarChar(40)
+  customerId    String        @db.Uuid
+  bookingType   BookingType
+  tableId       String?       @db.Uuid
+  roomId        String?       @db.Uuid
+  bookingDate   DateTime      @db.Date
+  startTime     String        @db.VarChar(5)
+  endTime       String        @db.VarChar(5)
+  startAt       DateTime
+  endAt         DateTime
+  members       Int
+  notes         String?       @db.Text
+  status        BookingStatus @default(PENDING)
+  source        BookingSource
+  cancelledAt   DateTime?
+  checkedInAt   DateTime?
+  checkedOutAt  DateTime?
+  noShowAt      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  customer      User          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  table         DiningTable?  @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  room          Room?         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([bookingType])
+  @@index([status])
+  @@index([source])
+  @@index([bookingDate])
+  @@index([startAt, endAt])
+  @@index([tableId, startAt, endAt])
+  @@index([roomId, startAt, endAt])
+  @@map("bookings")
 }

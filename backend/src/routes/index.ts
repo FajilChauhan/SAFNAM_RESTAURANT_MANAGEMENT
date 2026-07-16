@@ -1,9 +1,19 @@
 // Registers root-level routes before feature modules are introduced.
 import { Router } from "express";
 import { authRouter } from "../modules/auth/auth.routes.js";
+import { bookingRouter } from "../modules/bookings/booking.routes.js";
+import { floorRouter } from "../modules/floors/floor.routes.js";
+import { restaurantRouter } from "../modules/restaurant/restaurant.routes.js";
+import { roomRouter } from "../modules/rooms/room.routes.js";
+import { tableRouter } from "../modules/tables/table.routes.js";
 import { healthRouter } from "./health.route.js";
 
 export const router = Router();
 
 router.use(healthRouter);
 router.use("/api/auth", authRouter);
+router.use("/api/bookings", bookingRouter);
+router.use("/api/restaurant", restaurantRouter);
+router.use("/api/floors", floorRouter);
+router.use("/api/tables", tableRouter);
+router.use("/api/rooms", roomRouter);

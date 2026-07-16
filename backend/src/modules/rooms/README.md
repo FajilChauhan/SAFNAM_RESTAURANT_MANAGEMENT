@@ -1,5 +1,5 @@
 # rooms
 
-Placeholder for future hotel room management.
+Owns hotel room setup.
 
-No room APIs or database tables are implemented yet.
+Rooms belong to a restaurant and define room number, type, capacity, daily price, and operational status.

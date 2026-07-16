@@ -1,5 +1,5 @@
 # tables
 
-Placeholder for future restaurant table management.
+Owns dining table setup.
 
-No table APIs or database tables are implemented yet.
+Tables belong to floors and define capacity, shape, operational status, and future QR code placement.

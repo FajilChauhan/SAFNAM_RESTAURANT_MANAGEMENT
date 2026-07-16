@@ -1,5 +1,5 @@
 # bookings
 
-Placeholder for future restaurant and hotel booking workflows.
+Owns the unified Booking Engine for table and room reservations.
 
-No booking APIs or database tables are implemented yet.
+This module manages booking lifecycle, conflict detection, availability checks, check-in, check-out, cancellation, and automatic no-show marking.
