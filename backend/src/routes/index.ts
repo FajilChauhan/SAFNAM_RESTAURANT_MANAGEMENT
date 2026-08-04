@@ -1,13 +1,16 @@
 // Registers root-level routes before feature modules are introduced.
 import { Router } from "express";
 import { authRouter } from "../modules/auth/auth.routes.js";
+import { businessIntelligenceRouter } from "../modules/business-intelligence/bi.routes.js";
 import { checkoutRouter } from "../modules/checkout/checkout.routes.js";
+import { customerRouter } from "../modules/customer/customer.routes.js";
 import { invoiceRouter } from "../modules/bills/invoice.routes.js";
 import { bookingRouter } from "../modules/bookings/booking.routes.js";
 import { floorRouter } from "../modules/floors/floor.routes.js";
 import { kitchenRouter } from "../modules/kitchen/kitchen.routes.js";
 import { menuRouter } from "../modules/menu/menu.routes.js";
 import { orderRouter } from "../modules/orders/order.routes.js";
+import { operationsRouter } from "../modules/operations/operations.routes.js";
 import { paymentRouter } from "../modules/payments/payment.routes.js";
 import { restaurantRouter } from "../modules/restaurant/restaurant.routes.js";
 import { roomRouter } from "../modules/rooms/room.routes.js";
@@ -18,12 +21,15 @@ export const router = Router();
 
 router.use(healthRouter);
 router.use("/api/auth", authRouter);
+router.use("/api/bi", businessIntelligenceRouter);
 router.use("/api/checkout", checkoutRouter);
+router.use("/api/customer", customerRouter);
 router.use("/api/invoices", invoiceRouter);
 router.use("/api/bookings", bookingRouter);
 router.use("/api/kitchen", kitchenRouter);
 router.use("/api/menu", menuRouter);
 router.use("/api/orders", orderRouter);
+router.use("/api/operations", operationsRouter);
 router.use("/api/payments", paymentRouter);
 router.use("/api/restaurant", restaurantRouter);
 router.use("/api/floors", floorRouter);
