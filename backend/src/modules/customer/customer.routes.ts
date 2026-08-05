@@ -6,11 +6,15 @@ import { customerController } from "./customer.controller.js";
 
 export const customerRouter = Router();
 
-customerRouter.use(authenticate, authorize(UserRole.CUSTOMER));
-
+// Public discovery endpoints for the customer home experience.
 customerRouter.get("/home", customerController.home);
 customerRouter.get("/restaurant", customerController.restaurant);
 customerRouter.get("/menu", customerController.menu);
+customerRouter.get("/offers", customerController.offers);
+customerRouter.get("/leaderboard", customerController.leaderboard);
+
+customerRouter.use(authenticate, authorize(UserRole.CUSTOMER));
+
 customerRouter.post("/bookings", customerController.book);
 customerRouter.patch("/bookings/:bookingId/reschedule", customerController.reschedule);
 customerRouter.post("/bookings/:bookingId/cancel", customerController.cancelBooking);
@@ -31,8 +35,6 @@ customerRouter.get("/bookings/:bookingId/invoice/live", customerController.liveI
 customerRouter.post("/payments", customerController.pay);
 customerRouter.get("/payments/history", customerController.paymentHistory);
 customerRouter.get("/profile", customerController.profile);
-customerRouter.get("/offers", customerController.offers);
-customerRouter.get("/leaderboard", customerController.leaderboard);
 customerRouter.post("/bookings/:bookingId/game/play", customerController.playGame);
 customerRouter.post("/bookings/:bookingId/feedback", customerController.feedback);
 customerRouter.get("/notifications", customerController.notifications);

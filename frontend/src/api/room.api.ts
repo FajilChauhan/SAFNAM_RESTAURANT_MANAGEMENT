@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const roomApi = {
   list: () => api.get("/api/rooms"),
   create: (data: unknown) => api.post("/api/rooms", data),

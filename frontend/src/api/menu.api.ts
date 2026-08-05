@@ -1,5 +1,9 @@
-import { api } from "./axios";
+import api from "./axios";
+
 export const menuApi = {
+  getCategories: () => api.get("/api/menu/categories"),
+  getFeaturedItems: () => api.get("/api/menu/items", { params: { featured: true } }),
+  getPopularItems: () => api.get("/api/menu/items", { params: { popular: true } }),
   categories: {
     list: () => api.get("/api/menu/categories"),
     create: (data: unknown) => api.post("/api/menu/categories", data),

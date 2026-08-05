@@ -13,6 +13,11 @@ export class RestaurantService extends BaseService {
     return this.restaurantRepository.create(dto);
   }
 
+  async getPublicInfo() {
+    const restaurant = await this.restaurantRepository.findPublic();
+    return this.ensureExists(restaurant, "Restaurant not found");
+  }
+
   async getById(id: string) {
     const restaurant = await this.restaurantRepository.findById(id);
     return this.ensureExists(restaurant, "Restaurant not found");

@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const customerApi = {
   home: () => api.get("/api/customer/home"),
   menu: () => api.get("/api/customer/menu"),
@@ -16,6 +16,7 @@ export const customerApi = {
   payments: () => api.get("/api/customer/payments/history"),
   profile: () => api.get("/api/customer/profile"),
   offers: () => api.get("/api/customer/offers"),
+  leaderboard: () => api.get("/api/customer/leaderboard"),
   notifications: () => api.get("/api/customer/notifications"),
   feedback: (bookingId: string, data: unknown) => api.post(`/api/customer/bookings/${bookingId}/feedback`, data),
 };

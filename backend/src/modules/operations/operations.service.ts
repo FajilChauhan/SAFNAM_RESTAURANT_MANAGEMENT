@@ -1,5 +1,6 @@
 // Operations service composes role-specific dashboards from existing business modules.
 import { BaseService } from "../../lib/BaseService.js";
+import { prisma } from "../../database/prisma.js";
 import { startOfUtcDay, endOfUtcDay } from "../../utils/date.js";
 import { OperationsRepository } from "./operations.repository.js";
 
@@ -10,6 +11,22 @@ export class OperationsService extends BaseService {
 
   dashboardSummary(date = new Date()) {
     return this.operationsRepository.dashboardSummary(this.todayRange(date));
+  }
+
+  publicOffers() {
+    return prisma.offer.findMany({
+      where: { deletedAt: null, status: "ACTIVE" },
+      orderBy: { endsAt: "asc" },
+    });
+  }
+
+  publicLeaderboard() {
+    return prisma.user.findMany({
+      where: { deletedAt: null, role: "CUSTOMER" },
+      select: { id: true, fullName: true, avatarUrl: true, visitCount: true, totalSpending: true },
+      orderBy: [{ totalSpending: "desc" }, { visitCount: "desc" }],
+      take: 10,
+    });
   }
 
   receptionDashboard() {

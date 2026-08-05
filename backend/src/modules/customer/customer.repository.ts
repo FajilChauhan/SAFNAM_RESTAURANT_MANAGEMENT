@@ -157,7 +157,7 @@ export class CustomerRepository {
     });
   }
 
-  leaderboard(customerId: string) {
+  leaderboard(customerId: string | null) {
     return prisma.user.findMany({
       where: { deletedAt: null, role: "CUSTOMER" },
       select: { id: true, fullName: true, avatarUrl: true, visitCount: true, totalSpending: true },
@@ -165,7 +165,7 @@ export class CustomerRepository {
       take: 100,
     }).then((customers) => ({
       topCustomers: customers.slice(0, 10),
-      currentRank: customers.findIndex((customer) => customer.id === customerId) + 1 || null,
+      currentRank: customerId ? customers.findIndex((customer) => customer.id === customerId) + 1 || null : null,
     }));
   }
 

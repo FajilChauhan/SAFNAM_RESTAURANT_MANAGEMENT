@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const paymentApi = {
   create: (data: unknown) => api.post("/api/payments", data),
   get: (paymentId: string) => api.get(`/api/payments/${paymentId}`),

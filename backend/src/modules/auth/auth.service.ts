@@ -41,12 +41,16 @@ export class AuthService implements IAuthService {
   }
 
   async login(dto: LoginDto, metadata: RequestMetadata): Promise<TokenPair & { user: AuthUserDto }> {
-    const user = await this.authRepository.findUserByPhoneNumber(dto.phoneNumber);
+    const user = dto.phoneNumber
+      ? await this.authRepository.findUserByPhoneNumber(dto.phoneNumber)
+      : dto.email
+        ? await this.authRepository.findUserByEmail(dto.email)
+        : null;
     const passwordHash = user?.passwordHash ?? "$2b$12$KIXJgn3IuULxXFjIe.zoMeA8UF5j.TnL0nFIqrQPcqeNWUzQPvRVa";
     const isPasswordValid = await comparePassword(dto.password, passwordHash);
 
     if (!user || !isPasswordValid) {
-      throw new ApiError(401, "Invalid phone number or password");
+      throw new ApiError(401, "Invalid credentials");
     }
 
     if (user.status !== UserStatus.ACTIVE) {

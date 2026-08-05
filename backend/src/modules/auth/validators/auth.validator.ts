@@ -12,16 +12,51 @@ const passwordSchema = z
   .max(72, "Password must be 72 characters or less");
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(2).max(120),
-  phoneNumber: phoneSchema,
+  fullName: z.string().trim().min(2).max(120).optional(),
+  name: z.string().trim().min(2).max(120).optional(),
+  phoneNumber: phoneSchema.optional(),
+  phone: phoneSchema.optional(),
   email: z.string().trim().email().max(255).optional(),
   password: passwordSchema,
-});
+})
+  .superRefine((data, ctx) => {
+    if (!data.fullName && !data.name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Full name is required",
+        path: ["fullName"],
+      });
+    }
+
+    if (!data.phoneNumber && !data.phone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Phone number is required",
+        path: ["phoneNumber"],
+      });
+    }
+  })
+  .transform((data) => ({
+    fullName: data.fullName ?? data.name ?? "",
+    phoneNumber: data.phoneNumber ?? data.phone ?? "",
+    email: data.email,
+    password: data.password,
+  }));
 
 export const loginSchema = z.object({
-  phoneNumber: phoneSchema,
+  email: z.string().trim().email().max(255).optional(),
+  phoneNumber: phoneSchema.optional(),
   password: z.string().min(1, "Password is required"),
-});
+})
+  .superRefine((data, ctx) => {
+    if (!data.email && !data.phoneNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Email or phone number is required",
+        path: ["email"],
+      });
+    }
+  });
 
 export const changePasswordSchema = z
   .object({

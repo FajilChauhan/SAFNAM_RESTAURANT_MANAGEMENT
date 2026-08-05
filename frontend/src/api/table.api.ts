@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const tableApi = {
   list: () => api.get("/api/tables"),
   create: (data: unknown) => api.post("/api/tables", data),

@@ -7,6 +7,9 @@ import { operationsController } from "./operations.controller.js";
 
 export const operationsRouter = Router();
 
+operationsRouter.get("/offers", operationsController.publicOffers);
+operationsRouter.get("/leaderboard", operationsController.publicLeaderboard);
+
 operationsRouter.use(authenticate);
 
 operationsRouter.get(

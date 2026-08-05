@@ -5,6 +5,11 @@ import { restaurantService } from "./restaurant.service.js";
 import { createRestaurantSchema, updateRestaurantSchema } from "./validators/restaurant.validator.js";
 
 class RestaurantController extends BaseController {
+  publicInfo = asyncHandler(async (_req, res) => {
+    const restaurant = await restaurantService.getPublicInfo();
+    this.ok(res, "Restaurant fetched successfully", { restaurant });
+  });
+
   create = asyncHandler(async (req, res) => {
     const dto = createRestaurantSchema.parse(req.body);
     const restaurant = await restaurantService.create(dto);

@@ -4,6 +4,16 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { operationsService } from "./operations.service.js";
 
 class OperationsController extends BaseController {
+  publicOffers = asyncHandler(async (_req, res) => {
+    const offers = await operationsService.publicOffers();
+    this.ok(res, "Offers fetched successfully", { offers });
+  });
+
+  publicLeaderboard = asyncHandler(async (_req, res) => {
+    const leaderboard = await operationsService.publicLeaderboard();
+    this.ok(res, "Leaderboard fetched successfully", { leaderboard });
+  });
+
   dashboardSummary = asyncHandler(async (_req, res) => {
     const summary = await operationsService.dashboardSummary();
     this.ok(res, "Operations dashboard summary fetched successfully", { summary });

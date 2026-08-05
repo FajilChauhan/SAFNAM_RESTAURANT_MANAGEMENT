@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const bookingApi = {
   list: () => api.get("/api/bookings"),
   get: (id: string) => api.get(`/api/bookings/${id}`),

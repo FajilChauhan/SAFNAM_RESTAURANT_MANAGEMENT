@@ -38,7 +38,7 @@ class CustomerController extends BaseController {
   paymentHistory = asyncHandler(async (req, res) => this.ok(res, "Payment history fetched successfully", { payments: await customerService.paymentHistory(req.user!.id) }));
   profile = asyncHandler(async (req, res) => this.ok(res, "Profile fetched successfully", { profile: await customerService.profile(req.user!.id) }));
   offers = asyncHandler(async (_req, res) => this.ok(res, "Offers fetched successfully", { offers: await customerService.offers() }));
-  leaderboard = asyncHandler(async (req, res) => this.ok(res, "Leaderboard fetched successfully", { leaderboard: await customerService.leaderboard(req.user!.id) }));
+  leaderboard = asyncHandler(async (req, res) => this.ok(res, "Leaderboard fetched successfully", { leaderboard: await customerService.leaderboard(req.user?.id ?? null) }));
   playGame = asyncHandler(async (req, res) => this.created(res, "Reward claimed successfully", { reward: await customerService.playGame(uuidSchema.parse(req.params.bookingId), req.user!) }));
   feedback = asyncHandler(async (req, res) => this.created(res, "Feedback submitted successfully", { feedback: await customerService.submitFeedback(uuidSchema.parse(req.params.bookingId), customerFeedbackSchema.parse(req.body), req.user!) }));
   notifications = asyncHandler(async (req, res) => this.ok(res, "Notifications fetched successfully", { notifications: await customerService.notifications(req.user!.id) }));

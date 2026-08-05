@@ -8,7 +8,8 @@ export type RegisterDto = {
 };
 
 export type LoginDto = {
-  phoneNumber: string;
+  email?: string;
+  phoneNumber?: string;
   password: string;
 };
 

@@ -1,5 +1,11 @@
-import { AppRouter } from "@/routes/AppRouter";
+import { useEffect } from 'react'
+import { useAuthStore } from './store/authStore'
+import AppRouter from './routes/AppRouter'
 
-export default function App() {
-  return <AppRouter />;
+function App() {
+  const { isAuthenticated } = useAuthStore()
+  
+  return <AppRouter />
 }
+
+export default App

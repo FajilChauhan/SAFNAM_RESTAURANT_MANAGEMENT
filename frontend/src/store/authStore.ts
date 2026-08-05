@@ -1,39 +1,56 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import type { User } from "@/types/auth.types";
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import type { User } from '../types/auth.types'
 
 interface AuthState {
-  user: User | null;
-  accessToken: string | null;
-  isAuthenticated: boolean;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  logout: () => void;
-  initialize: () => void;
+  user: User | null
+  accessToken: string | null
+  refreshToken: string | null
+  isAuthenticated: boolean
+  setAuth: (
+    user: User,
+    accessToken: string,
+    refreshToken: string
+  ) => void
+  setUser: (user: User) => void
+  logout: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
-      setUser: (user) => set({ user, isAuthenticated: Boolean(user && get().accessToken) }),
-      setToken: (accessToken) => set({ accessToken, isAuthenticated: Boolean(accessToken && get().user) }),
-      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
-      initialize: () => {
-        const accessToken = localStorage.getItem("accessToken");
-        const userRaw = localStorage.getItem("user");
-        const user = userRaw ? (JSON.parse(userRaw) as User) : null;
-        set({ accessToken, user, isAuthenticated: Boolean(accessToken && user) });
+
+      setAuth: (user, accessToken, refreshToken) => {
+        localStorage.setItem('accessToken', accessToken)
+        localStorage.setItem('refreshToken', refreshToken)
+        set({
+          user,
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+        })
+      },
+
+      setUser: (user) => set({ user }),
+
+      logout: () => {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        })
       },
     }),
     {
-      name: "safnam-auth",
-      partialize: (state) => ({ user: state.user, accessToken: state.accessToken }),
-      onRehydrateStorage: () => (state) => {
-        if (state) state.initialize();
-      },
-    },
-  ),
-);
+      name: 'safnam-auth',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)

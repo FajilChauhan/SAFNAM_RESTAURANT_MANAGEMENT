@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const orderApi = {
   cart: (bookingId: string) => api.get(`/api/orders/cart/${bookingId}`),
   confirm: (data: unknown) => api.post("/api/orders/confirm", data),

@@ -6,6 +6,19 @@ export class RestaurantRepository {
     return prisma.restaurant.create({ data });
   }
 
+  findPublic() {
+    return prisma.restaurant.findFirst({
+      where: { deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      include: {
+        floors: {
+          orderBy: { displayOrder: "asc" },
+        },
+        rooms: true,
+      },
+    });
+  }
+
   findById(id: string) {
     return prisma.restaurant.findUnique({
       where: { id },

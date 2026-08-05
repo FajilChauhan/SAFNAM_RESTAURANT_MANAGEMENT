@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const kitchenApi = {
   queue: () => api.get("/api/kitchen/queue"),
   summary: () => api.get("/api/kitchen/summary"),

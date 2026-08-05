@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import api from "./axios";
 export const floorApi = {
   list: () => api.get("/api/floors"),
   create: (data: unknown) => api.post("/api/floors", data),

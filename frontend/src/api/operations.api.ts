@@ -1,4 +1,5 @@
-import { api } from "./axios";
+import api from "./axios";
+
 export const operationsApi = {
   dashboardSummary: () => api.get("/api/operations/dashboard/summary"),
   receptionDashboard: () => api.get("/api/operations/reception/dashboard"),
@@ -12,4 +13,6 @@ export const operationsApi = {
   pendingBills: () => api.get("/api/operations/bills/pending"),
   kitchenQueueCount: () => api.get("/api/operations/kitchen/queue-count"),
   customerSearch: (search: string) => api.get("/api/operations/customers/search", { params: { search } }),
+  getOffers: () => api.get("/api/operations/offers"),
+  getLeaderboard: () => api.get("/api/operations/leaderboard"),
 };

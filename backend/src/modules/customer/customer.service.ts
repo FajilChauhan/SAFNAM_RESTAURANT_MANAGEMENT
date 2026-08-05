@@ -178,8 +178,8 @@ export class CustomerService extends BaseService {
     return this.customerRepository.activeOffers(new Date());
   }
 
-  leaderboard(customerId: string) {
-    return this.customerRepository.leaderboard(customerId);
+  leaderboard(customerId?: string | null) {
+    return this.customerRepository.leaderboard(customerId ?? null);
   }
 
   async playGame(bookingId: string, actor: AuthenticatedUser) {
