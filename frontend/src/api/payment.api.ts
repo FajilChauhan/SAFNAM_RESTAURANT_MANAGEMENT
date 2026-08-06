@@ -1,8 +1,10 @@
 import api from "./axios";
+
 export const paymentApi = {
-  create: (data: unknown) => api.post("/api/payments", data),
-  get: (paymentId: string) => api.get(`/api/payments/${paymentId}`),
-  history: (invoiceId: string) => api.get(`/api/payments/invoice/${invoiceId}/history`),
-  summary: (invoiceId: string) => api.get(`/api/payments/invoice/${invoiceId}/summary`),
-  refund: (paymentId: string, data: unknown) => api.post(`/api/payments/${paymentId}/refund`, data),
+  initiatePayment: (data: { invoiceId: string; method: string }) => api.post("/api/payments", data),
+  verifyPayment: (data: unknown) => api.post("/api/payments/verify", data),
+  getMyPayments: () => api.get("/api/payments"),
+  getAllPayments: () => api.get("/api/payments"),
+  getPaymentById: (id: string) => api.get(`/api/payments/${id}`),
 };
+

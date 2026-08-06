@@ -21,3 +21,9 @@ export const getInitials = (name: string) =>
 
 export const truncate = (text: string, length: number) =>
   text.length > length ? `${text.slice(0, length).trimEnd()}...` : text;
+
+export const getErrorMessage = (error: unknown): string => {
+  if (!error) return "Something went wrong";
+  const err = error as { response?: { data?: { message?: string } }; message?: string };
+  return err.response?.data?.message ?? err.message ?? "Something went wrong";
+};

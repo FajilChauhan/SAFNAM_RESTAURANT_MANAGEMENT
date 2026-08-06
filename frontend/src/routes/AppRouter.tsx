@@ -12,11 +12,18 @@ import ReceptionRoutes from "./ReceptionRoutes";
 
 const AppRouter = () => {
   const { isAuthenticated, user } = useAuthStore();
-  const home = !isAuthenticated ? "/customer" : user?.role === "CUSTOMER" ? "/customer" : user?.role === "RECEPTION" ? "/reception" : user?.role === "KITCHEN" ? "/kitchen" : user?.role === "MANAGER" ? "/manager" : "/admin";
+  const roleMap: Record<string, string> = {
+    CUSTOMER: "/customer",
+    RECEPTION: "/reception",
+    KITCHEN: "/kitchen",
+    MANAGER: "/manager",
+    ADMIN: "/admin",
+  };
+  const home = !isAuthenticated || !user ? "/customer" : roleMap[user.role] ?? "/customer";
 
   return (
     <Routes>
-      <Route path="/" element={<CustomerHomePage />} />
+      <Route path="/" element={<Navigate to={home} replace />} />
       <Route path="/customer" element={<CustomerHomePage />} />
       <Route path="/customer/*" element={<CustomerRoutes />} />
       <Route path="/login" element={<LoginPage />} />

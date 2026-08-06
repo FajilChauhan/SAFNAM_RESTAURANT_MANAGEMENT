@@ -12,11 +12,13 @@ operationsRouter.get("/leaderboard", operationsController.publicLeaderboard);
 
 operationsRouter.use(authenticate);
 
+operationsRouter.get("/dashboard", requireOperationPermission(OPERATION_PERMISSIONS.DASHBOARD_VIEW), operationsController.dashboardSummary);
 operationsRouter.get(
   "/dashboard/summary",
   requireOperationPermission(OPERATION_PERMISSIONS.DASHBOARD_VIEW),
   operationsController.dashboardSummary,
 );
+operationsRouter.get("/revenue", requireOperationPermission(OPERATION_PERMISSIONS.MANAGER_VIEW), operationsController.todaysRevenue);
 operationsRouter.get(
   "/reception/dashboard",
   requireOperationPermission(OPERATION_PERMISSIONS.RECEPTION_VIEW),
@@ -42,6 +44,7 @@ operationsRouter.get(
   requireOperationPermission(OPERATION_PERMISSIONS.MANAGER_VIEW),
   operationsController.todaysOrders,
 );
+operationsRouter.get("/orders", requireOperationPermission(OPERATION_PERMISSIONS.MANAGER_VIEW), operationsController.todaysOrders);
 operationsRouter.get(
   "/revenue/today",
   requireOperationPermission(OPERATION_PERMISSIONS.MANAGER_VIEW),

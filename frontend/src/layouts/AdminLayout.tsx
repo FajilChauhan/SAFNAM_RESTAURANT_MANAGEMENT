@@ -1,4 +1,192 @@
-import type { ReactNode } from "react";
-export function AdminLayout({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen bg-surface p-4 dark:bg-dark">{children}</div>;
+import { useMemo, useState, type ReactNode } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Bell,
+  BarChart3,
+  BedDouble,
+  CalendarDays,
+  Grid3X3,
+  LayoutDashboard,
+  Layers,
+  LogOut,
+  Menu,
+  Percent,
+  Search,
+  Settings,
+  Tag,
+  UserCheck,
+  Users,
+  UtensilsCrossed,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useAuthStore } from "@/store/authStore";
+import { cn } from "@/utils/cn";
+import { Avatar } from "@/components/ui";
+
+type NavItem = {
+  label: string;
+  to: string;
+  icon: ReactNode;
+};
+
+const navGroups: Array<{ title: string; items: NavItem[] }> = [
+  { title: "Overview", items: [{ label: "Dashboard", to: "/admin", icon: <LayoutDashboard size={18} /> }] },
+  {
+    title: "Management",
+    items: [
+      { label: "Employees", to: "/admin/employees", icon: <Users size={18} /> },
+      { label: "Customers", to: "/admin/customers", icon: <UserCheck size={18} /> },
+      { label: "Bookings", to: "/admin/bookings", icon: <CalendarDays size={18} /> },
+    ],
+  },
+  {
+    title: "Restaurant",
+    items: [
+      { label: "Menu Items", to: "/admin/menu/items", icon: <UtensilsCrossed size={18} /> },
+      { label: "Categories", to: "/admin/menu/categories", icon: <Tag size={18} /> },
+      { label: "Tables", to: "/admin/tables", icon: <Grid3X3 size={18} /> },
+      { label: "Floors", to: "/admin/floors", icon: <Layers size={18} /> },
+      { label: "Rooms", to: "/admin/rooms", icon: <BedDouble size={18} /> },
+    ],
+  },
+  {
+    title: "Business",
+    items: [
+      { label: "Offers", to: "/admin/offers", icon: <Percent size={18} /> },
+      { label: "Reports", to: "/admin/reports", icon: <BarChart3 size={18} /> },
+      { label: "Notifications", to: "/admin/notifications", icon: <Bell size={18} /> },
+      { label: "Settings", to: "/admin/settings", icon: <Settings size={18} /> },
+    ],
+  },
+];
+
+const pageTitles: Record<string, string> = {
+  "/admin": "Dashboard",
+  "/admin/employees": "Employees",
+  "/admin/menu/categories": "Menu Categories",
+  "/admin/menu/items": "Menu Items",
+  "/admin/tables": "Tables",
+  "/admin/floors": "Floors",
+  "/admin/rooms": "Rooms",
+  "/admin/bookings": "Bookings",
+  "/admin/customers": "Customers",
+  "/admin/offers": "Offers",
+  "/admin/settings": "Restaurant Settings",
+  "/admin/reports": "Reports",
+  "/admin/notifications": "Notifications",
+};
+
+export default function AdminLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const title = useMemo(() => pageTitles[location.pathname] ?? "Dashboard", [location.pathname]);
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <aside className={cn("sticky top-0 h-screen bg-gray-900 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
+        <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+          <div className={cn("transition-all", collapsed && "opacity-0")}>
+            <div className="font-display text-xl font-bold text-amber-400">SAFNAM</div>
+            <div className="text-xs text-gray-500">Admin Panel</div>
+          </div>
+          <button type="button" onClick={() => setCollapsed((value) => !value)} className="rounded-xl p-2 text-gray-300 hover:bg-white/10">
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        </div>
+
+        <div className="px-3 py-4">
+          <div className={cn("mb-6 rounded-2xl bg-white/5 p-3", collapsed && "hidden")}>
+            <div className="flex items-center gap-3">
+              <Avatar name={user?.name ?? "Administrator"} />
+              <div>
+                <div className="text-sm font-semibold">{user?.name ?? "Administrator"}</div>
+                <div className="text-xs text-gray-400">Administrator</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            {navGroups.map((group) => (
+              <div key={group.title}>
+                <div className={cn("mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500", collapsed && "hidden")}>
+                  {group.title}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      title={collapsed ? item.label : undefined}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white",
+                          isActive && "border-r-2 border-emerald-500 bg-emerald-600/20 text-white",
+                          collapsed && "justify-center px-0",
+                        )
+                      }
+                    >
+                      <span className="shrink-0">{item.icon}</span>
+                      {!collapsed ? <span>{item.label}</span> : null}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={cn("absolute bottom-0 left-0 right-0 border-t border-white/10 p-4", collapsed && "p-2")}>
+          <div className={cn("mb-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3", collapsed && "justify-center")}>
+            <Avatar name={user?.name ?? "Administrator"} />
+            {!collapsed ? (
+              <div>
+                <div className="text-sm font-semibold">{user?.name ?? "Administrator"}</div>
+                <div className="text-xs text-gray-400">Administrator</div>
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className={cn("flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white", collapsed && "justify-center px-0")}
+          >
+            <LogOut size={18} />
+            {!collapsed ? "Logout" : null}
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex min-h-screen flex-1 flex-col">
+        <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-gray-900">{title}</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="button" className="rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+              <Search size={18} />
+            </button>
+            <button type="button" className="relative rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+              <Bell size={18} />
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+            </button>
+            <button type="button" className="rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+              <Menu size={18} />
+            </button>
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-auto bg-gray-50 p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
 }

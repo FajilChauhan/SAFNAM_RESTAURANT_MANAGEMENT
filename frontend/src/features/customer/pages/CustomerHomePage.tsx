@@ -199,7 +199,7 @@ export default function CustomerHomePage() {
   const specialsQuery = useQuery<MenuItemCard[]>({
     queryKey: ["menu-specials"],
     queryFn: async () => {
-      const response = await menuApi.getFeaturedItems();
+      const response = await menuApi.getItems({ featured: true });
       return response.data.data.items as MenuItemCard[];
     },
   });
@@ -207,7 +207,7 @@ export default function CustomerHomePage() {
   const popularQuery = useQuery<MenuItemCard[]>({
     queryKey: ["menu-popular"],
     queryFn: async () => {
-      const response = await menuApi.getPopularItems();
+      const response = await menuApi.getItems({ popular: true });
       return response.data.data.items as MenuItemCard[];
     },
   });
