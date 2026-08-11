@@ -6,7 +6,7 @@ export function useRooms() {
     queryKey: ["admin", "rooms"],
     queryFn: async () => {
       const { data } = await roomApi.getRooms();
-      return data.data as Array<{
+      return data.data.rooms as Array<{
         id: string;
         roomNumber: string;
         roomType: string;

@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Users, Star, ChefHat } from "lucide-react";
+import { CalendarDays, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import { Link } from "react-router-dom";
 
-
-const stats = [
-  { label: "2,400+ Happy Customers", icon: Users },
-  { label: "98% Satisfaction Rate", icon: Star },
-  { label: "50+ Expert Chefs", icon: ChefHat },
+const highlights = [
+  { label: "Book tables and rooms" },
+  { label: "Track orders and invoices" },
+  { label: "Access SAFNAM rewards" },
 ];
 
 export function AuthLayout({ children }: { children: ReactNode }) {
@@ -32,7 +31,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%)' }}
         />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
-          <Link to="/" className="text-amber-400 font-bold text-2xl tracking-widest">
+          <Link to="/customer" className="text-amber-400 font-bold text-2xl tracking-widest">
             SAFNAM
           </Link>
           <div className="max-w-xl space-y-4">
@@ -46,15 +45,16 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               className="text-amber-300 font-medium text-lg mt-2"
               style={{ textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}
             >
-              SAFNAM — Premium Dining Experience
+              SAFNAM Restaurant — Premium Dining Experience
             </p>
           </div>
-          <div className="grid gap-6">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon;
+          <div className="grid gap-4">
+            {highlights.map((item, index) => {
+              const icons = [CalendarDays, UtensilsCrossed, ShieldCheck];
+              const Icon = icons[index] ?? ShieldCheck;
               return (
                 <motion.div
-                  key={stat.label}
+                  key={item.label}
                   className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 w-fit"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -63,7 +63,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/15">
                     <Icon className="h-5 w-5 text-amber-400" />
                   </div>
-                  <div className="text-white font-semibold text-sm">{stat.label}</div>
+                  <div className="text-white font-semibold text-sm">{item.label}</div>
                 </motion.div>
               );
             })}
@@ -78,7 +78,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           transition={{ duration: 0.5 }}
         >
           <div className="mb-8 text-center lg:hidden">
-            <Link to="/" className="font-display text-3xl font-bold text-slate-900">
+            <Link to="/customer" className="font-display text-3xl font-bold text-slate-900">
               SAFNAM
             </Link>
           </div>

@@ -6,16 +6,19 @@ export function useBookingsAdmin() {
     queryKey: ["admin", "bookings"],
     queryFn: async () => {
       const { data } = await bookingApi.getAllBookings();
-      return data.data as Array<{
+      return data.data.bookings as Array<{
         id: string;
         bookingNumber?: string;
-        customer?: { name: string; phone?: string; email?: string };
+        customer?: { fullName?: string; name?: string; phone?: string; email?: string };
         bookingType?: string;
         table?: { tableNumber: string };
         room?: { roomNumber: string };
-        date: string;
+        date?: string;
+        bookingDate?: string;
+        startTime?: string;
         timeSlot?: string;
         guests?: number;
+        members?: number;
         status: string;
       }>;
     },

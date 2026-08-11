@@ -14,6 +14,9 @@ import OffersPage from "../features/admin/pages/OffersPage";
 import RestaurantSettingsPage from "../features/admin/pages/RestaurantSettingsPage";
 import ReportsPage from "../features/admin/pages/ReportsPage";
 import NotificationsPage from "../features/admin/pages/NotificationsPage";
+import RolesPage from "../features/admin/pages/RolesPage";
+import PermissionsPage from "../features/admin/pages/PermissionsPage";
+import AuditLogsPage from "../features/admin/pages/AuditLogsPage";
 
 const AdminRoutes = () => (
   <ProtectedRoute allowedRoles={["ADMIN"]}>
@@ -28,10 +31,17 @@ const AdminRoutes = () => (
         <Route path="rooms" element={<RoomsPage />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="menu" element={<MenuItemsPage />} />
+        <Route path="categories" element={<MenuCategoriesPage />} />
         <Route path="offers" element={<OffersPage />} />
         <Route path="settings" element={<RestaurantSettingsPage />} />
+        <Route path="roles" element={<RolesPage />} />
+        <Route path="permissions" element={<PermissionsPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="menu/items" element={<Navigate to="/admin/menu" replace />} />
+        <Route path="menu/categories" element={<Navigate to="/admin/categories" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

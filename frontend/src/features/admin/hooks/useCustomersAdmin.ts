@@ -1,20 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { operationsApi } from "@/api/operations.api";
+import { adminApi } from "@/api/admin.api";
 
 export function useCustomersAdmin(search: string = "") {
   return useQuery({
     queryKey: ["admin", "customers", search],
     queryFn: async () => {
-      const { data } = await operationsApi.searchCustomers(search);
-      return data.data as Array<{
-        id: string;
-        name: string;
-        email?: string;
-        phone?: string;
-        visits?: number;
-        totalSpent?: number;
-        lastVisit?: string;
-      }>;
+      const { data } = await adminApi.customers.list({ search, limit: 100 });
+      return data.data.customers;
     },
   });
 }

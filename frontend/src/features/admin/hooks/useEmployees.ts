@@ -1,20 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { biApi } from "@/api/bi.api";
+import { adminApi } from "@/api/admin.api";
 
 export function useEmployees() {
   return useQuery({
     queryKey: ["admin", "employees"],
     queryFn: async () => {
-      const { data } = await biApi.employees();
-      return data.data as Array<{
-        id: string;
-        name: string;
-        email: string;
-        phone?: string;
-        role: string;
-        status?: string;
-      }>;
+      const { data } = await adminApi.employees.list({ limit: 100 });
+      return data.data.employees;
     },
   });
 }
-

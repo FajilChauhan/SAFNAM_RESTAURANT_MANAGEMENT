@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { CalendarDays, CreditCard, Gift, ShoppingBag, Star, Trophy, Users } from "lucide-react";
+import { BedDouble, CalendarDays, CreditCard, Gift, ShoppingBag, Star, Trophy, Users, UtensilsCrossed } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dashboardApi } from "@/api/dashboard.api";
 import type { CustomerDashboard } from "@/types/dashboard.types";
@@ -42,8 +42,8 @@ export default function CustomerDashboardPage() {
           <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10" />
           <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Good evening, {dashboard.user.name}</h1>
-              <p className="mt-1 text-sm text-emerald-100">Welcome back to SAFNAM</p>
+              <h1 className="text-2xl font-bold">Welcome back, {dashboard.user.name}</h1>
+              <p className="mt-1 text-sm text-emerald-100">Ready for your next SAFNAM experience?</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="rounded-full bg-white/20 px-3 py-1 text-xs">Rank #{dashboard.user.leaderboardPosition || "-"}</span>
                 <span className="rounded-full bg-white/20 px-3 py-1 text-xs">{dashboard.user.rewardPoints} Points</span>
@@ -57,6 +57,21 @@ export default function CustomerDashboardPage() {
               <p className="text-xl font-bold">{dashboard.user.loyaltyStatus}</p>
             </div>
           </div>
+        </motion.section>
+
+        <motion.section variants={item} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            ["Book Table", "/customer/book-table", <CalendarDays className="h-6 w-6" />, "bg-amber-500 text-white shadow-amber-500/30"],
+            ["Book Room", "/customer/book-room", <BedDouble className="h-6 w-6" />, "bg-emerald-700 text-white shadow-emerald-700/20"],
+            ["View Menu", "/customer/menu", <UtensilsCrossed className="h-6 w-6" />, "bg-white text-gray-900"],
+            ["View Orders", "/customer/orders", <ShoppingBag className="h-6 w-6" />, "bg-white text-gray-900"],
+            ["View Bookings", "/customer/bookings", <Star className="h-6 w-6" />, "bg-white text-gray-900"],
+          ].map(([label, to, icon, className]) => (
+            <Link key={label as string} to={to as string} className={cn("flex min-h-28 flex-col justify-between rounded-2xl border border-gray-100 p-5 font-bold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md", className as string)}>
+              {icon}
+              <span>{label}</span>
+            </Link>
+          ))}
         </motion.section>
 
         {activeSession ? (
@@ -81,7 +96,16 @@ export default function CustomerDashboardPage() {
               ))}
             </div>
           </motion.section>
-        ) : null}
+        ) : (
+          <motion.section variants={item} className="rounded-2xl border border-dashed border-amber-200 bg-white p-6 text-center shadow-sm">
+            <h2 className="text-xl font-bold text-gray-900">No active booking</h2>
+            <p className="mt-2 text-sm text-gray-500">Reserve your next SAFNAM experience and your active session will appear here.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <Link to="/customer/book-table" className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white hover:bg-amber-600">Book a Table</Link>
+              <Link to="/customer/book-room" className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Book a Room</Link>
+            </div>
+          </motion.section>
+        )}
 
         <motion.div variants={item} className="grid gap-4 md:grid-cols-3">
           <StatCard label="Cart" value={cart ? `${cart.itemCount ?? cart.totalItems ?? cart.items.length} items` : "Empty"} sub={formatMoney(cart?.total ?? cart?.totalAmount)} icon={<ShoppingBag className="h-5 w-5" />} />

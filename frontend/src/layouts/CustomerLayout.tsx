@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Menu, ShoppingCart, UtensilsCrossed, X } from "lucide-react";
+import { Bell, ChevronDown, LayoutDashboard, LogOut, Menu, ShoppingCart, UtensilsCrossed, X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/utils/cn";
 
@@ -10,6 +10,14 @@ const navItems = [
   { label: "Offers", to: "/customer/offers" },
   { label: "Gallery", to: "/customer/gallery" },
   { label: "About", to: "/customer#about" },
+] as const;
+
+const mobileProtectedItems = [
+  { label: "Dashboard", to: "/customer/dashboard" },
+  { label: "Bookings", to: "/customer/bookings" },
+  { label: "Orders", to: "/customer/orders" },
+  { label: "Cart", to: "/customer/cart" },
+  { label: "Profile", to: "/customer/profile" },
 ] as const;
 
 export function CustomerLayout({ children }: { children: ReactNode }) {
@@ -89,16 +97,19 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <button type="button" className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-white/10">
+                <button type="button" onClick={() => navigate("/customer/dashboard")} className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10" aria-label="Dashboard">
+                  <LayoutDashboard className="h-5 w-5" />
+                </button>
+                <button type="button" onClick={() => navigate("/customer/cart")} className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10" aria-label="Cart">
                   <ShoppingCart className="h-5 w-5" />
                   <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                    2
+                    0
                   </span>
                 </button>
-                <button type="button" className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-white/10">
+                <button type="button" onClick={() => navigate("/customer/notifications")} className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10" aria-label="Notifications">
                   <Bell className="h-5 w-5" />
                   <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                    3
+                    0
                   </span>
                 </button>
                 <div className="group relative">
@@ -183,18 +194,46 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
                   {item.label}
                 </NavLink>
               ))}
+              {isAuthenticated ? (
+                <>
+                  <div className="my-3 h-px bg-gray-100 dark:bg-white/10" />
+                  {mobileProtectedItems.map((item) => (
+                    <NavLink
+                      key={item.label}
+                      to={item.to}
+                      onClick={() => setIsOpen(false)}
+                      className="block rounded-xl px-3 py-3 text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 dark:text-gray-200 dark:hover:bg-white/5"
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      setIsOpen(false);
+                      navigate("/customer");
+                    }}
+                    className="block w-full rounded-xl px-3 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : null}
             </div>
             <div className="mt-6 space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate("/login");
-                }}
-                className="w-full rounded-xl border border-emerald-700 px-4 py-3 text-sm font-semibold text-emerald-700"
-              >
-                Sign In
-              </button>
+              {!isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate("/login");
+                  }}
+                  className="w-full rounded-xl border border-emerald-700 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                  Sign In
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
+import { CustomerLayout } from "../layouts/CustomerLayout";
 import CustomerDashboardPage from "../features/customer/pages/CustomerDashboardPage";
 import CustomerPlaceholderPage from "../features/customer/pages/CustomerPlaceholderPage";
 
@@ -15,7 +16,9 @@ const CustomerRoutes = () => {
         path="dashboard"
         element={
           <ProtectedRoute allowedRoles={["CUSTOMER"]}>
-            <CustomerDashboardPage />
+            <CustomerLayout>
+              <CustomerDashboardPage />
+            </CustomerLayout>
           </ProtectedRoute>
         }
       />

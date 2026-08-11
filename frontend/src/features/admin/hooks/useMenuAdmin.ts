@@ -6,7 +6,7 @@ export function useMenuCategories() {
     queryKey: ["admin", "menu", "categories"],
     queryFn: async () => {
       const { data } = await menuApi.getCategories();
-      return data.data as Array<{ id: string; name: string; description?: string; image?: string; isActive?: boolean }>;
+      return data.data.categories as Array<{ id: string; name: string; description?: string; imageUrl?: string; status?: string; displayOrder?: number; restaurantId?: string }>;
     },
   });
 }
@@ -16,14 +16,16 @@ export function useMenuItems() {
     queryKey: ["admin", "menu", "items"],
     queryFn: async () => {
       const { data } = await menuApi.getItems();
-      return data.data as Array<{
+      return data.data.items as Array<{
         id: string;
         name: string;
         price: number;
-        image?: string;
-        isVeg?: boolean;
-        prepTime?: number;
+        imageUrl?: string;
+        foodType?: string;
+        preparationTimeMin?: number;
         isAvailable?: boolean;
+        status?: string;
+        isTodaySpecial?: boolean;
         category?: { name: string };
       }>;
     },

@@ -7,7 +7,7 @@ export function useTables() {
     queryKey: ["admin", "tables"],
     queryFn: async () => {
       const { data } = await tableApi.getTables();
-      return data.data as Array<{
+      return data.data.tables as Array<{
         id: string;
         tableNumber: string;
         capacity: number;
@@ -23,7 +23,7 @@ export function useFloors() {
     queryKey: ["admin", "floors"],
     queryFn: async () => {
       const { data } = await floorApi.getFloors();
-      return data.data as Array<{ id: string; name: string; level: number; tableCount?: number }>;
+      return data.data.floors as Array<{ id: string; name: string; displayOrder?: number; description?: string; status?: string; tables?: unknown[] }>;
     },
   });
 }

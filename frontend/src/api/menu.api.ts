@@ -10,7 +10,7 @@ export const menuApi = {
     api.get("/api/menu/items", { params }),
   getItemById: (id: string) => api.get(`/api/menu/items/${id}`),
   createItem: (data: FormData) => api.post("/api/menu/items", data, { headers: { "Content-Type": "multipart/form-data" } }),
-  updateItem: (id: string, data: FormData) => api.put(`/api/menu/items/${id}`, data, { headers: { "Content-Type": "multipart/form-data" } }),
+  updateItem: (id: string, data: FormData) => api.patch(`/api/menu/items/${id}`, data, { headers: { "Content-Type": "multipart/form-data" } }),
   deleteItem: (id: string) => api.delete(`/api/menu/items/${id}`),
   updateAvailability: (id: string, isAvailable: boolean) => api.patch(`/api/menu/items/${id}/availability`, { isAvailable }),
 
@@ -22,4 +22,3 @@ export const menuApi = {
   createAddon: (data: { itemId: string; name: string; price: number }) => api.post("/api/menu/addons", data),
   deleteAddon: (id: string) => api.delete(`/api/menu/addons/${id}`),
 };
-

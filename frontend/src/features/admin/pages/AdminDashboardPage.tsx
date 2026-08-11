@@ -164,8 +164,12 @@ export default function AdminDashboardPage() {
           {[
             ["Manage Employees", "/admin/employees"],
             ["Restaurant Settings", "/admin/settings"],
-            ["Add Menu Item", "/admin/menu/items"],
-            ["Audit Logs", "/admin/reports"],
+            ["Add Menu Item", "/admin/menu"],
+            ["Audit Logs", "/admin/audit-logs"],
+            ["Manage Tables", "/admin/tables"],
+            ["Manage Rooms", "/admin/rooms"],
+            ["Manage Categories", "/admin/categories"],
+            ["View Bookings", "/admin/bookings"],
           ].map(([label, path]) => (
             <button
               key={label}

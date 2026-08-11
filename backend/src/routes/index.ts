@@ -1,6 +1,7 @@
 // Registers root-level routes before feature modules are introduced.
 import { Router } from "express";
 import { authRouter } from "../modules/auth/auth.routes.js";
+import { adminRouter } from "../modules/admin/admin.routes.js";
 import { businessIntelligenceRouter } from "../modules/business-intelligence/bi.routes.js";
 import { checkoutRouter } from "../modules/checkout/checkout.routes.js";
 import { customerRouter } from "../modules/customer/customer.routes.js";
@@ -21,6 +22,7 @@ import { healthRouter } from "./health.route.js";
 export const router = Router();
 
 router.use(healthRouter);
+router.use("/api/admin", adminRouter);
 router.use("/api/auth", authRouter);
 router.use("/api/bi", businessIntelligenceRouter);
 router.use("/api/checkout", checkoutRouter);

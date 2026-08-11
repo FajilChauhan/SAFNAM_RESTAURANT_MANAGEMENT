@@ -5,19 +5,19 @@ export const operationsApi = {
   getRevenue: (period?: string) => api.get("/api/operations/revenue/today", { params: { period } }),
   getOrders: (params?: { period?: string }) => api.get("/api/operations/orders/today", { params }),
 
-  getEmployees: () => api.get("/api/bi/employees"),
+  getEmployees: () => api.get("/api/admin/employees"),
   createEmployee: (data: { name: string; email: string; phone: string; role: string; password: string }) =>
-    api.post("/api/operations/employees", data),
-  updateEmployee: (id: string, data: unknown) => api.put(`/api/operations/employees/${id}`, data),
-  deleteEmployee: (id: string) => api.delete(`/api/operations/employees/${id}`),
+    api.post("/api/admin/employees", data),
+  updateEmployee: (id: string, data: unknown) => api.patch(`/api/admin/employees/${id}`, data),
+  deleteEmployee: (id: string) => api.delete(`/api/admin/employees/${id}`),
 
-  getCustomers: () => api.get("/api/bi/customers"),
-  getCustomerById: (id: string) => api.get(`/api/operations/customers/${id}`),
+  getCustomers: () => api.get("/api/admin/customers"),
+  getCustomerById: (id: string) => api.get(`/api/admin/customers/${id}`),
 
-  getOffers: () => api.get("/api/operations/offers"),
-  createOffer: (data: unknown) => api.post("/api/operations/offers", data),
-  updateOffer: (id: string, data: unknown) => api.put(`/api/operations/offers/${id}`, data),
-  deleteOffer: (id: string) => api.delete(`/api/operations/offers/${id}`),
+  getOffers: () => api.get("/api/admin/offers"),
+  createOffer: (data: unknown) => api.post("/api/admin/offers", data),
+  updateOffer: (id: string, data: unknown) => api.patch(`/api/admin/offers/${id}`, data),
+  deleteOffer: (id: string) => api.delete(`/api/admin/offers/${id}`),
 
   getLeaderboard: () => api.get("/api/operations/leaderboard"),
 
@@ -36,4 +36,3 @@ export const operationsApi = {
   getKitchenQueueCount: () => api.get("/api/operations/kitchen/queue-count"),
   searchCustomers: (search: string) => api.get("/api/operations/customers/search", { params: { search } }),
 };
-

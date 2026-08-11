@@ -19,6 +19,8 @@ import {
   UtensilsCrossed,
   ChevronLeft,
   ChevronRight,
+  Shield,
+  ScrollText,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
@@ -44,8 +46,8 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Restaurant",
     items: [
-      { label: "Menu Items", to: "/admin/menu/items", icon: <UtensilsCrossed size={18} /> },
-      { label: "Categories", to: "/admin/menu/categories", icon: <Tag size={18} /> },
+      { label: "Menu Items", to: "/admin/menu", icon: <UtensilsCrossed size={18} /> },
+      { label: "Categories", to: "/admin/categories", icon: <Tag size={18} /> },
       { label: "Tables", to: "/admin/tables", icon: <Grid3X3 size={18} /> },
       { label: "Floors", to: "/admin/floors", icon: <Layers size={18} /> },
       { label: "Rooms", to: "/admin/rooms", icon: <BedDouble size={18} /> },
@@ -57,6 +59,9 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
       { label: "Offers", to: "/admin/offers", icon: <Percent size={18} /> },
       { label: "Reports", to: "/admin/reports", icon: <BarChart3 size={18} /> },
       { label: "Notifications", to: "/admin/notifications", icon: <Bell size={18} /> },
+      { label: "Roles", to: "/admin/roles", icon: <Shield size={18} /> },
+      { label: "Permissions", to: "/admin/permissions", icon: <Shield size={18} /> },
+      { label: "Audit Logs", to: "/admin/audit-logs", icon: <ScrollText size={18} /> },
       { label: "Settings", to: "/admin/settings", icon: <Settings size={18} /> },
     ],
   },
@@ -65,8 +70,8 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
 const pageTitles: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/employees": "Employees",
-  "/admin/menu/categories": "Menu Categories",
-  "/admin/menu/items": "Menu Items",
+  "/admin/menu": "Menu Items",
+  "/admin/categories": "Menu Categories",
   "/admin/tables": "Tables",
   "/admin/floors": "Floors",
   "/admin/rooms": "Rooms",
@@ -76,6 +81,9 @@ const pageTitles: Record<string, string> = {
   "/admin/settings": "Restaurant Settings",
   "/admin/reports": "Reports",
   "/admin/notifications": "Notifications",
+  "/admin/roles": "Roles",
+  "/admin/permissions": "Permissions",
+  "/admin/audit-logs": "Audit Logs",
 };
 
 export default function AdminLayout() {
@@ -88,28 +96,18 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className={cn("sticky top-0 h-screen bg-gray-900 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
+      <aside className={cn("sticky top-0 flex h-screen flex-col bg-slate-950 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
           <div className={cn("transition-all", collapsed && "opacity-0")}>
             <div className="font-display text-xl font-bold text-amber-400">SAFNAM</div>
-            <div className="text-xs text-gray-500">Admin Panel</div>
+            <div className="text-xs text-slate-400">Admin Panel</div>
           </div>
           <button type="button" onClick={() => setCollapsed((value) => !value)} className="rounded-xl p-2 text-gray-300 hover:bg-white/10">
             {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
 
-        <div className="px-3 py-4">
-          <div className={cn("mb-6 rounded-2xl bg-white/5 p-3", collapsed && "hidden")}>
-            <div className="flex items-center gap-3">
-              <Avatar name={user?.name ?? "Administrator"} />
-              <div>
-                <div className="text-sm font-semibold">{user?.name ?? "Administrator"}</div>
-                <div className="text-xs text-gray-400">Administrator</div>
-              </div>
-            </div>
-          </div>
-
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-5">
             {navGroups.map((group) => (
               <div key={group.title}>
@@ -140,7 +138,7 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <div className={cn("absolute bottom-0 left-0 right-0 border-t border-white/10 p-4", collapsed && "p-2")}>
+        <div className={cn("shrink-0 border-t border-white/10 bg-slate-950 p-4", collapsed && "p-2")}>
           <div className={cn("mb-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3", collapsed && "justify-center")}>
             <Avatar name={user?.name ?? "Administrator"} />
             {!collapsed ? (
@@ -168,6 +166,7 @@ export default function AdminLayout() {
         <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-gray-900">{title}</h1>
+            <p className="text-xs font-medium text-slate-500">SAFNAM Restaurant</p>
           </div>
           <div className="flex items-center gap-3">
             <button type="button" className="rounded-xl p-2 text-gray-500 hover:bg-gray-100">
