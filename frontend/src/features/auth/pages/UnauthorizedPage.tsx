@@ -5,7 +5,7 @@ import { Button } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
 
 const homeByRole = {
-  CUSTOMER: "/customer",
+  CUSTOMER: "/customer/dashboard",
   RECEPTION: "/reception",
   KITCHEN: "/kitchen",
   MANAGER: "/manager",

@@ -2,13 +2,16 @@ import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
+// Single axios instance — withCredentials so the httpOnly refresh-token cookie is
+// sent automatically on every request (including the /auth/refresh-token call).
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+  withCredentials: true,   // ← Required for httpOnly refresh-token cookie
 })
 
-// Request interceptor - attach token
+// ── Request interceptor: attach Bearer access-token ──────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken')
@@ -17,10 +20,13 @@ api.interceptors.request.use(
     }
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 )
 
-// Response interceptor - handle 401 + token refresh
+// ── Response interceptor: handle 401 + cookie-based token refresh ─────────────
+// The backend sets `safnam_refresh_token` as an httpOnly cookie on login.
+// On 401, we simply call POST /api/auth/refresh-token — the cookie is sent
+// automatically because withCredentials = true. We do NOT send a body.
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (token: string) => void
@@ -55,19 +61,9 @@ api.interceptors.response.use(
       originalRequest._retry = true
       isRefreshing = true
 
-      const refreshToken = localStorage.getItem('refreshToken')
-
-      if (!refreshToken) {
-        localStorage.clear()
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-
       try {
-        const response = await axios.post(
-          `${BASE_URL}/api/auth/refresh-token`,
-          { refreshToken }
-        )
+        // Cookie is sent automatically — no body needed.
+        const response = await axios.post(`${BASE_URL}/api/auth/refresh-token`, undefined, { withCredentials: true })
         const { accessToken } = response.data.data
         localStorage.setItem('accessToken', accessToken)
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
@@ -76,7 +72,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.clear()
+        localStorage.removeItem('accessToken')
         window.location.href = '/login'
         return Promise.reject(refreshError)
       } finally {
@@ -85,7 +81,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error)
-  }
+  },
 )
 
 export default api

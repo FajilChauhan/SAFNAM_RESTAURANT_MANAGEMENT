@@ -9,14 +9,6 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { isAuthenticated, user } = useAuthStore()
 
-  // Debug log — remove after testing
-  console.log('ProtectedRoute check:', {
-    isAuthenticated,
-    userRole: user?.role,
-    allowedRoles,
-    hasAccess: user ? allowedRoles.includes(user.role) : false
-  })
-
   // Not logged in
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />

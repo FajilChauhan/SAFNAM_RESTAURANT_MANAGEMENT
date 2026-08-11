@@ -1,30 +1,26 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../../../api/auth.api'
-import { useAuthStore } from '../../../store/authStore'
 import type { RegisterDto } from '../../../api/auth.api'
+
+// Backend POST /api/auth/register
+// Response: { success, data: { user } }  (201 Created)
+// Does NOT issue tokens — user must log in after registration.
 
 export const useRegister = () => {
   const navigate = useNavigate()
-  const { setAuth } = useAuthStore()
 
   const { mutate: register, isPending, error, isError } = useMutation({
     mutationFn: async (data: RegisterDto) => {
-      const registerRes = await authApi.register(data)
-      const { accessToken, refreshToken } = registerRes.data.data
-
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
-
-      const meRes = await authApi.getMe()
-      const user = meRes.data.data
-
-      return { user, accessToken, refreshToken }
+      const res = await authApi.register(data)
+      // Backend returns { success, data: { user } }
+      return res.data.data.user
     },
 
-    onSuccess: ({ user, accessToken, refreshToken }) => {
-      setAuth(user, accessToken, refreshToken)
-      navigate('/customer', { replace: true })
+    onSuccess: () => {
+      // After registration, redirect to login.
+      // The user must authenticate to receive tokens.
+      navigate('/login', { replace: true })
     },
 
     onError: (error: unknown) => {

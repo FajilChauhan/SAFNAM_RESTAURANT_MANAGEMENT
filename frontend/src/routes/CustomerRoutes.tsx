@@ -1,12 +1,24 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
+import CustomerDashboardPage from "../features/customer/pages/CustomerDashboardPage";
 import CustomerPlaceholderPage from "../features/customer/pages/CustomerPlaceholderPage";
 
 const CustomerRoutes = () => {
   return (
     <Routes>
+      {/* ── Public customer routes (no login required) ─────────────────── */}
       <Route path="gallery" element={<CustomerPlaceholderPage title="Gallery" />} />
       <Route path="offers" element={<CustomerPlaceholderPage title="Offers" />} />
+
+      {/* ── Authenticated customer routes ───────────────────────────────── */}
+      <Route
+        path="dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["CUSTOMER"]}>
+            <CustomerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="book-table"
         element={
@@ -87,6 +99,8 @@ const CustomerRoutes = () => {
           </ProtectedRoute>
         }
       />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/customer" replace />} />
     </Routes>
   );

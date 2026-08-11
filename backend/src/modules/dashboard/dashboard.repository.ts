@@ -279,6 +279,25 @@ export class DashboardRepository {
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q.priority DESC, q."queuedAt") FROM (SELECT * FROM queue WHERE status IN ('PENDING', 'ACCEPTED', 'PREPARING', 'READY') ORDER BY priority DESC, "queuedAt" LIMIT ${query.listLimit}) q), '[]'::jsonb) AS "kitchenQueue",
           COALESCE((SELECT AVG(EXTRACT(EPOCH FROM (q."readyAt" - q."startedAt")) / 60) FROM queue q WHERE q."startedAt" IS NOT NULL AND q."readyAt" IS NOT NULL), 0) AS "averagePreparationTime",
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q."confirmedAt" DESC) FROM queue q WHERE q."confirmedAt" >= CURRENT_DATE AND q."confirmedAt" < CURRENT_DATE + INTERVAL '1 day'), '[]'::jsonb) AS "todaysOrders",
+          COALESCE((SELECT jsonb_agg(jsonb_build_object('label', hourly.hour, 'value', hourly.count) ORDER BY hourly.hour)
+           FROM (
+             SELECT EXTRACT(HOUR FROM q."confirmedAt")::int AS hour, COUNT(*) AS count
+             FROM queue q
+             WHERE q."confirmedAt" >= CURRENT_DATE AND q."confirmedAt" < CURRENT_DATE + INTERVAL '1 day'
+             GROUP BY EXTRACT(HOUR FROM q."confirmedAt")
+           ) hourly), '[]'::jsonb) AS "ordersByHour",
+          COALESCE((SELECT jsonb_agg(jsonb_build_object('label', category_times.name, 'value', category_times.minutes) ORDER BY category_times.minutes DESC)
+           FROM (
+             SELECT mc.name, AVG(EXTRACT(EPOCH FROM (q."readyAt" - q."startedAt")) / 60) AS minutes
+             FROM queue q
+             JOIN order_items oi ON oi."orderId" = q."orderId" AND oi."deletedAt" IS NULL
+             JOIN menu_items mi ON mi.id = oi."menuItemId"
+             JOIN menu_categories mc ON mc.id = mi."categoryId"
+             WHERE q."startedAt" IS NOT NULL AND q."readyAt" IS NOT NULL
+             GROUP BY mc.name
+             ORDER BY minutes DESC
+             LIMIT ${query.listLimit}
+           ) category_times), '[]'::jsonb) AS "averageTimeByCategory",
           jsonb_build_object(
             'pending', (SELECT COUNT(*) FROM queue WHERE status = 'PENDING'),
             'accepted', (SELECT COUNT(*) FROM queue WHERE status = 'ACCEPTED'),
@@ -346,6 +365,57 @@ export class DashboardRepository {
            FROM menu_items mi JOIN menu_categories mc ON mc.id = mi."categoryId"
            WHERE mi."deletedAt" IS NULL AND (mi.status <> 'ACTIVE' OR mi."isAvailable" = false)
            LIMIT ${query.listLimit}), '[]'::jsonb) AS "lowAvailabilityMenuItems",
+          COALESCE((SELECT jsonb_agg(jsonb_build_object('label', chart.label, 'value', chart.value) ORDER BY chart.label)
+           FROM (
+             SELECT DATE(p."paidAt")::text AS label, COALESCE(SUM(p.amount - p."refundedAmount"), 0) AS value
+             FROM payments p
+             WHERE p."deletedAt" IS NULL
+               AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED')
+               AND p."paidAt" >= CURRENT_DATE - INTERVAL '6 days'
+               AND p."paidAt" < CURRENT_DATE + INTERVAL '1 day'
+             GROUP BY DATE(p."paidAt")
+           ) chart), '[]'::jsonb) AS "revenueChart",
+          COALESCE((SELECT jsonb_agg(jsonb_build_object('label', chart.label, 'value', chart.value) ORDER BY chart.label)
+           FROM (
+             SELECT DATE(o."confirmedAt")::text AS label, COUNT(*) AS value
+             FROM orders o
+             WHERE o."deletedAt" IS NULL
+               AND o."confirmedAt" >= CURRENT_DATE - INTERVAL '6 days'
+               AND o."confirmedAt" < CURRENT_DATE + INTERVAL '1 day'
+             GROUP BY DATE(o."confirmedAt")
+           ) chart), '[]'::jsonb) AS "ordersChart",
+          COALESCE((SELECT jsonb_agg(jsonb_build_object('label', status_counts.status, 'value', status_counts.count) ORDER BY status_counts.status)
+           FROM (
+             SELECT o.status::text AS status, COUNT(*) AS count
+             FROM orders o
+             WHERE o."deletedAt" IS NULL AND o."confirmedAt" >= CURRENT_DATE AND o."confirmedAt" < CURRENT_DATE + INTERVAL '1 day'
+             GROUP BY o.status
+           ) status_counts), '[]'::jsonb) AS "orderBreakdown",
+          COALESCE((SELECT ROUND(((today.revenue - yesterday.revenue) / NULLIF(yesterday.revenue, 0)) * 100, 2)
+           FROM (
+             SELECT COALESCE(SUM(p.amount - p."refundedAmount"), 0) AS revenue
+             FROM payments p
+             WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND p."paidAt" >= CURRENT_DATE AND p."paidAt" < CURRENT_DATE + INTERVAL '1 day'
+           ) today,
+           (
+             SELECT COALESCE(SUM(p.amount - p."refundedAmount"), 0) AS revenue
+             FROM payments p
+             WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND p."paidAt" >= CURRENT_DATE - INTERVAL '1 day' AND p."paidAt" < CURRENT_DATE
+           ) yesterday), 0) AS "revenueChange",
+          COALESCE((SELECT ROUND(((today.count - yesterday.count)::numeric / NULLIF(yesterday.count, 0)) * 100, 2)
+           FROM (
+             SELECT COUNT(*) AS count FROM orders o WHERE o."deletedAt" IS NULL AND o."confirmedAt" >= CURRENT_DATE AND o."confirmedAt" < CURRENT_DATE + INTERVAL '1 day'
+           ) today,
+           (
+             SELECT COUNT(*) AS count FROM orders o WHERE o."deletedAt" IS NULL AND o."confirmedAt" >= CURRENT_DATE - INTERVAL '1 day' AND o."confirmedAt" < CURRENT_DATE
+           ) yesterday), 0) AS "ordersChange",
+          COALESCE((SELECT ROUND(((today.count - yesterday.count)::numeric / NULLIF(yesterday.count, 0)) * 100, 2)
+           FROM (
+             SELECT COUNT(DISTINCT b."customerId") AS count FROM bookings b WHERE b."deletedAt" IS NULL AND b."bookingDate" = CURRENT_DATE
+           ) today,
+           (
+             SELECT COUNT(DISTINCT b."customerId") AS count FROM bookings b WHERE b."deletedAt" IS NULL AND b."bookingDate" = CURRENT_DATE - INTERVAL '1 day'
+           ) yesterday), 0) AS "customersChange",
           jsonb_build_object(
             'tableOccupancy', COALESCE((SELECT jsonb_object_agg(status_counts.status, status_counts.count) FROM (SELECT t.status::text, COUNT(*) AS count FROM tables t WHERE t."deletedAt" IS NULL GROUP BY t.status) status_counts), '{}'::jsonb),
             'roomOccupancy', COALESCE((SELECT jsonb_object_agg(status_counts.status, status_counts.count) FROM (SELECT r.status::text, COUNT(*) AS count FROM rooms r WHERE r."deletedAt" IS NULL GROUP BY r.status) status_counts), '{}'::jsonb),

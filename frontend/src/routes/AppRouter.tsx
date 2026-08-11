@@ -10,30 +10,61 @@ import ManagerRoutes from "./ManagerRoutes";
 import KitchenRoutes from "./KitchenRoutes";
 import ReceptionRoutes from "./ReceptionRoutes";
 
+// Role → first authenticated landing route.
+const roleHomeMap: Record<string, string> = {
+  CUSTOMER: "/customer/dashboard",
+  RECEPTION: "/reception",
+  KITCHEN: "/kitchen",
+  MANAGER: "/manager",
+  ADMIN: "/admin",
+};
+
 const AppRouter = () => {
   const { isAuthenticated, user } = useAuthStore();
-  const roleMap: Record<string, string> = {
-    CUSTOMER: "/customer",
-    RECEPTION: "/reception",
-    KITCHEN: "/kitchen",
-    MANAGER: "/manager",
-    ADMIN: "/admin",
-  };
-  const home = !isAuthenticated || !user ? "/customer" : roleMap[user.role] ?? "/customer";
+
+  // Determine where authenticated users land.
+  const authenticatedHome = isAuthenticated && user
+    ? (roleHomeMap[user.role] ?? "/customer/dashboard")
+    : null;
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={home} replace />} />
+      {/* Public root — show the SAFNAM public landing page when not logged in */}
+      <Route
+        path="/"
+        element={
+          authenticatedHome
+            ? <Navigate to={authenticatedHome} replace />
+            : <CustomerHomePage />
+        }
+      />
+
+      {/* Public customer-facing landing / home page */}
       <Route path="/customer" element={<CustomerHomePage />} />
+
+      {/* Customer authenticated routes (includes /customer/dashboard) */}
       <Route path="/customer/*" element={<CustomerRoutes />} />
+
+      {/* Auth pages */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+      {/* Staff / admin routes — each is protected by role inside */}
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="/manager/*" element={<ManagerRoutes />} />
       <Route path="/kitchen/*" element={<KitchenRoutes />} />
       <Route path="/reception/*" element={<ReceptionRoutes />} />
-      <Route path="*" element={<Navigate to={home} replace />} />
+
+      {/* Catch-all: send authenticated users to their dashboard, others to home */}
+      <Route
+        path="*"
+        element={
+          authenticatedHome
+            ? <Navigate to={authenticatedHome} replace />
+            : <Navigate to="/" replace />
+        }
+      />
     </Routes>
   );
 };

@@ -4,8 +4,9 @@ import { authApi } from '../../../api/auth.api'
 import type { LoginDto } from '../../../api/auth.api'
 import { useAuthStore } from '../../../store/authStore'
 
+// Role → dashboard route mapping based on REAL roles from the backend.
 const roleRedirectMap: Record<string, string> = {
-  CUSTOMER: '/customer',
+  CUSTOMER: '/customer/dashboard',
   RECEPTION: '/reception',
   KITCHEN: '/kitchen',
   MANAGER: '/manager',
@@ -18,20 +19,23 @@ export const useLogin = () => {
 
   const { mutate: login, isPending, error, isError } = useMutation({
     mutationFn: async (data: LoginDto) => {
+      // POST /api/auth/login
+      // Backend response: { success, data: { accessToken, user } }
+      // refreshToken is set as httpOnly cookie — NOT returned in body.
       const loginRes = await authApi.login(data)
-      const { accessToken, refreshToken } = loginRes.data.data
+      const { accessToken, user } = loginRes.data.data
 
+      // Store access token for the axios interceptor.
       localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
 
-      const meRes = await authApi.getMe()
-      const user = meRes.data.data
-
-      return { user, accessToken, refreshToken }
+      return { user, accessToken }
     },
-    onSuccess: ({ user, accessToken, refreshToken }) => {
-      setAuth(user, accessToken, refreshToken)
 
+    onSuccess: ({ user, accessToken }) => {
+      // Update Zustand store (no refreshToken — it's a cookie).
+      setAuth(user, accessToken)
+
+      // If the user was redirected to login from a protected route, go back there.
       const redirectAfterLogin = sessionStorage.getItem('redirectAfterLogin')
       if (redirectAfterLogin) {
         sessionStorage.removeItem('redirectAfterLogin')
@@ -39,8 +43,10 @@ export const useLogin = () => {
         return
       }
 
-      navigate(roleRedirectMap[user.role] ?? '/customer', { replace: true })
+      // Otherwise navigate to the role-specific dashboard.
+      navigate(roleRedirectMap[user.role] ?? '/customer/dashboard', { replace: true })
     },
+
     onError: (loginError: unknown) => {
       console.error('Login failed:', loginError)
     },

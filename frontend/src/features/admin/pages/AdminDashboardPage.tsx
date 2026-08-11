@@ -1,71 +1,46 @@
 import { useMemo } from "react";
-import { BarChart3, CalendarDays, ShoppingBag, Users, Plus } from "lucide-react";
+import { BarChart3, CalendarDays, Database, Plus, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader, EmptyState, Skeleton } from "@/components/ui";
-import { formatCurrency, getErrorMessage } from "@/utils/formatters";
-import { biApi } from "@/api/bi.api";
-import { bookingApi } from "@/api/booking.api";
-import { menuApi } from "@/api/menu.api";
+import { getErrorMessage } from "@/utils/formatters";
+import { dashboardApi } from "@/api/dashboard.api";
+import type { AdminDashboard } from "@/types/dashboard.types";
 import { RevenueChart } from "../components/RevenueChart";
 import { OrdersChart } from "../components/OrdersChart";
 import { StatCard } from "../components/StatCard";
-
-type DashboardData = {
-  todayRevenue?: number;
-  todayOrders?: number;
-  activeBookings?: number;
-  totalCustomers?: number;
-  recentBookings?: Array<{
-    id: string;
-    customerName?: string;
-    tableOrRoom?: string;
-    date?: string;
-    time?: string;
-    guests?: number;
-    status?: string;
-  }>;
-  revenueChart?: Array<{ label: string; value: number }>;
-  orderBreakdown?: Array<{ label: string; value: number; className: string }>;
-};
-
-type MenuItemRow = {
-  id: string;
-  name: string;
-  category?: { name: string };
-  price?: number;
-};
+import { formatMoney } from "@/features/dashboard/DashboardShared";
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
 
   const dashboardQuery = useQuery({
     queryKey: ["admin-dashboard"],
-    queryFn: async () => (await biApi.dashboard()).data.data as DashboardData,
+    queryFn: async () => (await dashboardApi.getAdminDashboard()).data.data.dashboard,
     refetchInterval: 30000,
   });
-  const bookingsQuery = useQuery({
-    queryKey: ["admin-recent-bookings"],
-    queryFn: async () => (await bookingApi.getAllBookings()).data.data as DashboardData["recentBookings"],
-  });
-  const menuItemsQuery = useQuery({
-    queryKey: ["admin-top-items"],
-    queryFn: async () => (await menuApi.getItems()).data.data as MenuItemRow[],
-  });
 
-  const dashboard = dashboardQuery.data;
+  const dashboard = dashboardQuery.data as AdminDashboard | undefined;
   const stats = useMemo(
     () => [
-      { label: "Today's Revenue", value: formatCurrency(dashboard?.todayRevenue ?? 0), icon: BarChart3 },
-      { label: "Today's Orders", value: String(dashboard?.todayOrders ?? 0), icon: ShoppingBag },
-      { label: "Active Bookings", value: String(dashboard?.activeBookings ?? 0), icon: CalendarDays },
-      { label: "Total Customers", value: String(dashboard?.totalCustomers ?? 0), icon: Users },
+      { label: "Today's Revenue", value: formatMoney(dashboard?.stats.todayRevenue), icon: BarChart3 },
+      { label: "Today's Orders", value: String(dashboard?.stats.todayOrders ?? 0), icon: ShoppingBag },
+      { label: "Today's Bookings", value: String(dashboard?.stats.todayBookings ?? 0), icon: CalendarDays },
+      { label: "Total Customers", value: String(dashboard?.stats.totalCustomers ?? 0), icon: Users },
     ],
     [dashboard],
   );
+  const orderBreakdown = useMemo(() => {
+    const items = dashboard?.orderBreakdown ?? [];
+    const total = items.reduce((sum, point) => sum + point.value, 0);
+    const colors = ["bg-amber-500", "bg-blue-500", "bg-emerald-500", "bg-slate-500", "bg-red-500"];
 
-  const recentBookings = dashboard?.recentBookings ?? bookingsQuery.data ?? [];
-  const topItems = menuItemsQuery.data ?? [];
+    return items.map((point, index) => ({
+      label: point.label,
+      value: total ? Math.round((point.value / total) * 100) : 0,
+      className: colors[index % colors.length],
+    }));
+  }, [dashboard?.orderBreakdown]);
 
   if (dashboardQuery.isLoading) {
     return (
@@ -79,13 +54,8 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (dashboardQuery.isError) {
-    return (
-      <EmptyState
-        title="Dashboard unavailable"
-        description={getErrorMessage(dashboardQuery.error)}
-      />
-    );
+  if (dashboardQuery.isError || !dashboard) {
+    return <EmptyState title="Dashboard unavailable" description={getErrorMessage(dashboardQuery.error)} />;
   }
 
   return (
@@ -93,16 +63,14 @@ export default function AdminDashboardPage() {
       <PageHeader title="Admin Dashboard" subtitle="Restaurant wide performance overview" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((item) => (
-          <StatCard key={item.label} label={item.label} value={item.value} icon={item.icon} />
-        ))}
+        {stats.map((stat) => <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />)}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <RevenueChart points={dashboard?.revenueChart} />
+          <RevenueChart points={dashboard.revenueChart} />
         </div>
-        <OrdersChart items={dashboard?.orderBreakdown} />
+        <OrdersChart items={orderBreakdown} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -111,7 +79,7 @@ export default function AdminDashboardPage() {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Bookings</h3>
             <button className="text-sm text-emerald-700 hover:underline" onClick={() => navigate("/admin/bookings")}>View All</button>
           </div>
-          {!recentBookings.length ? (
+          {!dashboard.recentBookings.length ? (
             <EmptyState title="No recent bookings" description="Recent bookings will appear here once guests start reserving tables or rooms." />
           ) : (
             <div className="overflow-x-auto">
@@ -121,19 +89,17 @@ export default function AdminDashboardPage() {
                     <th className="py-2">Customer</th>
                     <th>Table/Room</th>
                     <th>Date</th>
-                    <th>Time</th>
                     <th>Guests</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentBookings.map((booking) => (
+                  {dashboard.recentBookings.map((booking) => (
                     <tr key={booking.id} className="border-t border-gray-100 dark:border-gray-800">
                       <td className="py-3 font-medium">{booking.customerName ?? "Guest"}</td>
-                      <td>{booking.tableOrRoom ?? "-"}</td>
-                      <td>{booking.date ?? "-"}</td>
-                      <td>{booking.time ?? "-"}</td>
-                      <td>{booking.guests ?? "-"}</td>
+                      <td>{booking.tableNumber ?? booking.roomNumber ?? "-"}</td>
+                      <td>{booking.startAt ?? booking.bookingDate ?? "-"}</td>
+                      <td>{booking.members ?? booking.guests ?? "-"}</td>
                       <td>{booking.status ?? "-"}</td>
                     </tr>
                   ))}
@@ -145,21 +111,17 @@ export default function AdminDashboardPage() {
 
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Top Selling Items</h3>
-          {!topItems.length ? (
-            <EmptyState title="No menu items" description="Menu items will appear here once the menu module returns records." />
+          {!dashboard.topSellingFoods.length ? (
+            <EmptyState title="No order data" description="Top selling foods will appear after orders are completed." />
           ) : (
             <div className="space-y-4">
-              {topItems.slice(0, 6).map((item, index) => (
-                <div key={item.id} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">{index + 1}. {item.name}</p>
-                      <p className="text-slate-500">{item.category?.name ?? "Category"}</p>
-                    </div>
-                    <div className="text-right text-slate-500">
-                      <p>{formatCurrency(item.price ?? 0)}</p>
-                    </div>
+              {dashboard.topSellingFoods.slice(0, 6).map((item, index) => (
+                <div key={item.menuItemId ?? item.name} className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{index + 1}. {item.name}</p>
+                    <p className="text-slate-500">{item.quantity ?? 0} orders</p>
                   </div>
+                  <p className="font-semibold text-slate-700 dark:text-slate-200">{formatMoney(item.revenue)}</p>
                 </div>
               ))}
             </div>
@@ -167,14 +129,43 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-4 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Stats</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Mini label="Total Staff" value={dashboard.employeeStats.total} />
+            <Mini label="Managers" value={dashboard.employeeStats.managers} />
+            <Mini label="Reception" value={dashboard.employeeStats.reception} />
+            <Mini label="Kitchen" value={dashboard.employeeStats.kitchen} />
+          </div>
+          <button className="mt-4 text-sm font-semibold text-emerald-700 hover:underline" onClick={() => navigate("/admin/employees")}>Manage Employees</button>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-4 flex items-center gap-2">
+            <Database className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">System Health</h3>
+          </div>
+          <div className="space-y-3 text-sm">
+            <p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />{dashboard.systemHealth.status}</p>
+            <p>DB Status: {dashboard.systemHealth.dbStatus}</p>
+            <p>Uptime: {dashboard.systemHealth.uptime}s</p>
+            <p>Last backup: {dashboard.systemHealth.lastBackup}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Quick Actions</h3>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Add Employee", "/admin/employees"],
+            ["Manage Employees", "/admin/employees"],
+            ["Restaurant Settings", "/admin/settings"],
             ["Add Menu Item", "/admin/menu/items"],
-            ["Add Table", "/admin/tables"],
-            ["Add Room", "/admin/rooms"],
+            ["Audit Logs", "/admin/reports"],
           ].map(([label, path]) => (
             <button
               key={label}
@@ -190,3 +181,11 @@ export default function AdminDashboardPage() {
   );
 }
 
+function Mini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800">
+      <p className="text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+      <p className="text-xs text-slate-500">{label}</p>
+    </div>
+  );
+}

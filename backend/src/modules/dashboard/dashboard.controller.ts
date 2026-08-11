@@ -6,7 +6,7 @@ import { dashboardQuerySchema } from "./dashboard.validator.js";
 class DashboardController extends BaseController {
   customer = asyncHandler(async (req, res) => {
     const query = dashboardQuerySchema.parse(req.query);
-    const dashboard = await dashboardService.customer(req.user!.id, query);
+    const dashboard = await dashboardService.customer(req.user!, query);
 
     this.ok(res, "Customer dashboard fetched successfully", { dashboard });
   });
