@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type AdminEmployee, type UserStatus } from "@/api/admin.api";
 import { Button, EmptyState, Input, Modal, PageHeader, Select, StatusChip } from "@/components/ui";
 import { getErrorMessage } from "@/utils/formatters";
+import { toast } from "@/utils/toast";
 
 type EmployeeForm = {
   fullName: string;
@@ -27,6 +28,7 @@ export default function EmployeesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewing, setViewing] = useState<AdminEmployee | null>(null);
   const [editing, setEditing] = useState<AdminEmployee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(blankForm);
   const [error, setError] = useState("");
@@ -52,6 +54,7 @@ export default function EmployeesPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "employees"] });
+      toast.success(editing ? "Employee updated successfully." : "Employee created successfully.");
       closeModal();
     },
     onError: (err) => setError(getErrorMessage(err)),
@@ -59,12 +62,14 @@ export default function EmployeesPage() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: UserStatus }) => adminApi.employees.status(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "employees"] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "employees"] }); toast.success("Employee status updated."); },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminApi.employees.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "employees"] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "employees"] }); toast.success("Employee deleted successfully."); },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const rows = employeesQuery.data ?? [];
@@ -141,6 +146,7 @@ export default function EmployeesPage() {
                     <td className="px-4 py-4 text-slate-600">{employee.lastLoginAt ? new Date(employee.lastLoginAt).toLocaleString() : "-"}</td>
                     <td className="px-4 py-4">
                       <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setViewing(employee)}>View</Button>
                         <Button size="sm" variant="outline" onClick={() => openEdit(employee)}>Edit</Button>
                         <Button
                           size="sm"
@@ -178,9 +184,10 @@ export default function EmployeesPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Role">
               <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as EmployeeForm["role"] })}>
+                <option value="CUSTOMER" disabled>Customer — use Customer Management</option>
+                <option value="RECEPTION">Reception</option>
                 <option value="ADMIN">Admin</option>
                 <option value="MANAGER">Manager</option>
-                <option value="RECEPTION">Reception</option>
                 <option value="KITCHEN">Kitchen</option>
               </Select>
             </Field>
@@ -200,6 +207,27 @@ export default function EmployeesPage() {
           </div>
         </div>
       </Modal>
+      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Employee Details">
+        {viewing ? (
+          <div className="space-y-3 text-sm">
+            <Info label="Name" value={viewing.fullName} />
+            <Info label="Phone" value={viewing.phoneNumber} />
+            <Info label="Email" value={viewing.email ?? "-"} />
+            <Info label="Role" value={viewing.role} />
+            <Info label="Status" value={viewing.status} />
+            <Info label="Last Login" value={viewing.lastLoginAt ? new Date(viewing.lastLoginAt).toLocaleString() : "-"} />
+          </div>
+        ) : null}
+      </Modal>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-900">{value}</span>
     </div>
   );
 }

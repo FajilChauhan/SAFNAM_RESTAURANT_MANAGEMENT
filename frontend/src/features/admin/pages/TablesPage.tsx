@@ -5,6 +5,7 @@ import { floorApi } from "@/api/floor.api";
 import { tableApi } from "@/api/table.api";
 import { Button, EmptyState, Input, Modal, PageHeader, Select, StatusChip } from "@/components/ui";
 import { getErrorMessage } from "@/utils/formatters";
+import { toast } from "@/utils/toast";
 
 type Table = { id: string; floorId?: string; tableNumber: string; capacity: number; shape?: string; status: string; floor?: { id: string; name: string } };
 type Floor = { id: string; name: string; status?: string };
@@ -25,10 +26,15 @@ export default function TablesPage() {
       const payload = { floorId: form.floorId, tableNumber: form.tableNumber.trim(), capacity: Number(form.capacity), shape: form.shape, status: form.status };
       return editing ? tableApi.updateTable(editing.id, payload) : tableApi.createTable(payload);
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "tables"] }); closeModal(); },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "tables"] });
+      toast.success(editing ? "Table updated successfully." : "Table created successfully.");
+      closeModal();
+    },
     onError: (err) => setError(getErrorMessage(err)),
   });
-  const deleteMutation = useMutation({ mutationFn: (id: string) => tableApi.deleteTable(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "tables"] }) });
+  const deleteMutation = useMutation({ mutationFn: (id: string) => tableApi.deleteTable(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "tables"] }); toast.success("Table deleted successfully."); }, onError: (err) => toast.error(getErrorMessage(err)) });
+  const statusMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => tableApi.updateTable(id, { status }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "tables"] }); toast.success("Table status updated."); }, onError: (err) => toast.error(getErrorMessage(err)) });
   const openCreate = () => { setEditing(null); setForm({ ...emptyForm, floorId: floors[0]?.id ?? "" }); setError(""); setIsOpen(true); };
   const openEdit = (table: Table) => { setEditing(table); setForm({ floorId: table.floorId ?? table.floor?.id ?? "", tableNumber: table.tableNumber, capacity: String(table.capacity), shape: table.shape ?? "SQUARE", status: table.status }); setError(""); setIsOpen(true); };
   const closeModal = () => { setIsOpen(false); setEditing(null); setForm(emptyForm); setError(""); };
@@ -39,11 +45,11 @@ export default function TablesPage() {
     <div className="space-y-6">
       <PageHeader title="Tables" subtitle="Manage seating layout and table availability" />
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="flex justify-end"><Button onClick={openCreate} disabled={!floors.length} leftIcon={<Plus size={16} />}>Add Table</Button></div>
+        <div className="flex justify-end"><Button onClick={openCreate} leftIcon={<Plus size={16} />}>Add Table</Button></div>
         {!floors.length && !floorsQuery.isLoading ? <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Create an active floor before adding tables.</p> : null}
         {tablesQuery.isError ? <EmptyState title="Unable to load tables" description={getErrorMessage(tablesQuery.error)} /> : !tables.length && !tablesQuery.isLoading ? <EmptyState title="No tables" description="Add dining tables to manage reservations and occupancy." /> : (
           <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{tables.map((table) => (
-            <article key={table.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><p className="text-lg font-semibold text-slate-900">Table {table.tableNumber}</p><p className="text-sm text-slate-500">{table.floor?.name ?? "No floor"}</p><p className="text-sm text-slate-500">Capacity: {table.capacity}</p><p className="text-sm text-slate-500">Shape: {table.shape ?? "-"}</p><div className="mt-3"><StatusChip status={table.status} /></div><div className="mt-4 flex gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(table)}>Edit</Button><Button size="sm" variant="danger" onClick={() => window.confirm(`Delete table ${table.tableNumber}?`) && deleteMutation.mutate(table.id)}>Delete</Button></div></article>
+            <article key={table.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><p className="text-lg font-semibold text-slate-900">Table {table.tableNumber}</p><p className="text-sm text-slate-500">{table.floor?.name ?? "No floor"}</p><p className="text-sm text-slate-500">Capacity: {table.capacity}</p><p className="text-sm text-slate-500">Shape: {table.shape ?? "-"}</p><div className="mt-3"><StatusChip status={table.status} /></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(table)}>Edit</Button><Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: table.id, status: table.status === "OUT_OF_SERVICE" ? "AVAILABLE" : "OUT_OF_SERVICE" })}>{table.status === "OUT_OF_SERVICE" ? "Activate" : "Deactivate"}</Button><Button size="sm" variant="danger" onClick={() => window.confirm(`Delete table ${table.tableNumber}?`) && deleteMutation.mutate(table.id)}>Delete</Button></div></article>
           ))}</div>
         )}
       </div>

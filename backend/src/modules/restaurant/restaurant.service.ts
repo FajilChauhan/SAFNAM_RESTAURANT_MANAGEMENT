@@ -1,7 +1,5 @@
-import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
-import { ApiError } from "../../utils/ApiError.js";
-import type { CreateRestaurantDto, UpdateRestaurantDto } from "./dto/restaurant.dto.js";
+import type { UpdateRestaurantDto } from "./dto/restaurant.dto.js";
 import { RestaurantRepository } from "./restaurant.repository.js";
 
 export class RestaurantService extends BaseService {
@@ -9,28 +7,18 @@ export class RestaurantService extends BaseService {
     super();
   }
 
-  create(dto: CreateRestaurantDto) {
-    return this.restaurantRepository.create(dto);
-  }
-
   async getPublicInfo() {
     const restaurant = await this.restaurantRepository.findPublic();
-    return this.ensureExists(restaurant, "Restaurant not found");
+    return restaurant ?? this.restaurantRepository.ensureSingle();
   }
 
-  async getById(id: string) {
-    const restaurant = await this.restaurantRepository.findById(id);
-    return this.ensureExists(restaurant, "Restaurant not found");
+  ensureSingle() {
+    return this.restaurantRepository.ensureSingle();
   }
 
-  async update(id: string, dto: UpdateRestaurantDto) {
-    const restaurant = await this.restaurantRepository.findById(id);
-
-    if (!restaurant) {
-      throw new ApiError(404, "Restaurant not found", ERROR_CODES.RESOURCE_NOT_FOUND);
-    }
-
-    return this.restaurantRepository.update(id, dto);
+  async updateSingle(dto: UpdateRestaurantDto) {
+    await this.ensureSingle();
+    return this.restaurantRepository.updateSingle(dto);
   }
 }
 

@@ -6,7 +6,7 @@ import type {
 } from "@prisma/client";
 
 export type CreateCategoryDto = {
-  restaurantId: string;
+  restaurantId?: string;
   name: string;
   description?: string;
   displayOrder?: number;

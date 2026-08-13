@@ -2,7 +2,7 @@ import { FloorStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const createFloorSchema = z.object({
-  restaurantId: z.string().uuid(),
+  restaurantId: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(100),
   displayOrder: z.coerce.number().int().min(0).optional(),
   description: z.string().trim().max(1000).optional(),

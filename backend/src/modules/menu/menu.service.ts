@@ -3,6 +3,7 @@ import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { restaurantService } from "../restaurant/restaurant.service.js";
 import type {
   CreateAddOnDto,
   CreateAvailabilityDto,
@@ -22,8 +23,10 @@ export class MenuService extends BaseService {
   }
 
   async createCategory(dto: CreateCategoryDto) {
-    await this.ensureCategoryNameAvailable(dto.restaurantId, dto.name);
-    return this.menuRepository.createCategory(dto);
+    const restaurant = await restaurantService.ensureSingle();
+    const restaurantId = dto.restaurantId ?? restaurant.id;
+    await this.ensureCategoryNameAvailable(restaurantId, dto.name);
+    return this.menuRepository.createCategory({ ...dto, restaurantId });
   }
 
   listCategories(options: QueryOptions) {

@@ -14,6 +14,16 @@ export default function CustomersPage() {
     queryKey: ["admin", "customers", search],
     queryFn: async () => (await adminApi.customers.list({ search, limit: 100 })).data.data.customers,
   });
+  const customerDetailsQuery = useQuery({
+    queryKey: ["admin", "customers", selected?.id, "details"],
+    enabled: Boolean(selected?.id),
+    queryFn: async () => (await adminApi.customers.get(selected!.id)).data.data.customer as AdminCustomer & {
+      bookings?: Array<{ id: string; bookingNumber?: string; bookingType?: string; status?: string; bookingDate?: string }>;
+      orders?: Array<{ id: string; orderNumber?: string; status?: string; totalSnapshot?: string | number }>;
+      payments?: Array<{ id: string; paymentNumber?: string; status?: string; amount?: string | number }>;
+      feedback?: Array<{ id: string; comments?: string; foodRating?: number; serviceRating?: number }>;
+    },
+  });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: UserStatus }) => adminApi.customers.status(id, status),
@@ -86,16 +96,32 @@ export default function CustomersPage() {
       <Modal isOpen={Boolean(selected)} onClose={() => setSelected(null)} title="Customer Details">
         {selected ? (
           <div className="space-y-3 text-sm text-slate-700">
-            <Info label="Name" value={selected.fullName} />
-            <Info label="Phone" value={selected.phoneNumber} />
-            <Info label="Email" value={selected.email ?? "-"} />
-            <Info label="Visits" value={String(selected.visitCount)} />
-            <Info label="Total Spending" value={formatCurrency(Number(selected.totalSpending ?? 0))} />
-            <Info label="Last Visit" value={selected.lastVisitAt ? new Date(selected.lastVisitAt).toLocaleString() : "-"} />
-            <Info label="Status" value={selected.status} />
+            <Info label="Name" value={(customerDetailsQuery.data ?? selected).fullName} />
+            <Info label="Phone" value={(customerDetailsQuery.data ?? selected).phoneNumber} />
+            <Info label="Email" value={(customerDetailsQuery.data ?? selected).email ?? "-"} />
+            <Info label="Visits" value={String((customerDetailsQuery.data ?? selected).visitCount)} />
+            <Info label="Total Spending" value={formatCurrency(Number((customerDetailsQuery.data ?? selected).totalSpending ?? 0))} />
+            <Info label="Last Visit" value={(customerDetailsQuery.data ?? selected).lastVisitAt ? new Date((customerDetailsQuery.data ?? selected).lastVisitAt!).toLocaleString() : "-"} />
+            <Info label="Status" value={(customerDetailsQuery.data ?? selected).status} />
+            <History title="Recent Bookings" items={(customerDetailsQuery.data?.bookings ?? []).map((item) => `${item.bookingNumber ?? item.id} · ${item.bookingType ?? "-"} · ${item.status ?? "-"}`)} />
+            <History title="Recent Orders" items={(customerDetailsQuery.data?.orders ?? []).map((item) => `${item.orderNumber ?? item.id} · ${item.status ?? "-"} · ${formatCurrency(Number(item.totalSnapshot ?? 0))}`)} />
+            <History title="Recent Payments" items={(customerDetailsQuery.data?.payments ?? []).map((item) => `${item.paymentNumber ?? item.id} · ${item.status ?? "-"} · ${formatCurrency(Number(item.amount ?? 0))}`)} />
           </div>
         ) : null}
       </Modal>
+    </div>
+  );
+}
+
+function History({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-4 py-3">
+      <p className="font-semibold text-slate-900">{title}</p>
+      {items.length ? (
+        <ul className="mt-2 space-y-1 text-slate-700">
+          {items.slice(0, 5).map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      ) : <p className="mt-1 text-slate-500">No records found.</p>}
     </div>
   );
 }

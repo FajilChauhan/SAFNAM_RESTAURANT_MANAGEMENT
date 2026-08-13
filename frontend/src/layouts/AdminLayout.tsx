@@ -9,9 +9,7 @@ import {
   LayoutDashboard,
   Layers,
   LogOut,
-  Menu,
   Percent,
-  Search,
   Settings,
   Tag,
   UserCheck,
@@ -23,9 +21,12 @@ import {
   ScrollText,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/utils/cn";
 import { Avatar } from "@/components/ui";
+import { restaurantApi } from "@/api/restaurant.api";
+import { adminApi } from "@/api/admin.api";
 
 type NavItem = {
   label: string;
@@ -91,8 +92,12 @@ export default function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
+  const restaurantQuery = useQuery({ queryKey: ["restaurant"], queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant });
+  const notificationsQuery = useQuery({ queryKey: ["admin", "layout-notifications"], queryFn: async () => (await adminApi.auditLogs({ limit: 5 })).data.data.audit.activities });
 
   const title = useMemo(() => pageTitles[location.pathname] ?? "Dashboard", [location.pathname]);
+  const restaurantName = restaurantQuery.data?.name ?? "SAFNAM Restaurant";
+  const notificationCount = notificationsQuery.data?.length ?? 0;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -107,7 +112,7 @@ export default function AdminLayout() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <div className="admin-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-5">
             {navGroups.map((group) => (
               <div key={group.title}>
@@ -166,18 +171,15 @@ export default function AdminLayout() {
         <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-gray-900">{title}</h1>
-            <p className="text-xs font-medium text-slate-500">SAFNAM Restaurant</p>
+            <p className="text-xs font-medium text-slate-500">{restaurantName}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" className="rounded-xl p-2 text-gray-500 hover:bg-gray-100">
-              <Search size={18} />
-            </button>
-            <button type="button" className="relative rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+            <button type="button" onClick={() => navigate("/admin/notifications")} className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100">
               <Bell size={18} />
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+              {notificationCount ? <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">{notificationCount}</span> : null}
             </button>
-            <button type="button" className="rounded-xl p-2 text-gray-500 hover:bg-gray-100">
-              <Menu size={18} />
+            <button type="button" onClick={() => navigate("/admin/settings")} className="hidden rounded-2xl border border-gray-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50 sm:block">
+              {user?.name ?? "Administrator"}
             </button>
           </div>
         </header>

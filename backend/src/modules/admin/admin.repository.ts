@@ -1,5 +1,6 @@
 import { MenuEntityStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
+import type { OperationPermission } from "../operations/constants/operationPermissions.js";
 import type {
   AdminListQueryDto,
   CreateEmployeeDto,
@@ -228,6 +229,26 @@ export class AdminRepository {
   }
 
   async auditSummary(query: AdminListQueryDto) {
+    const persisted = await prisma.auditLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: Math.min(query.limit, 100),
+    });
+
+    if (persisted.length) {
+      return {
+        activities: persisted.map((item) => ({
+          id: item.id,
+          module: item.module,
+          action: item.action,
+          actor: item.actorName ?? "System",
+          role: item.actorRole ?? "ADMIN",
+          entity: [item.entityName, item.entityType].filter(Boolean).join(" · ") || "-",
+          timestamp: item.createdAt,
+        })),
+        note: "Persisted audit events from the audit_logs table.",
+      };
+    }
+
     const take = Math.min(query.limit, 50);
     const [users, bookings, orders, payments] = await Promise.all([
       prisma.user.findMany({
@@ -296,6 +317,23 @@ export class AdminRepository {
     ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, take);
 
     return { activities, note: "Derived from existing transactional updatedAt fields; no separate audit log table exists." };
+  }
+
+  async rolePermissions() {
+    return prisma.rolePermission.findMany({ orderBy: [{ role: "asc" }, { permission: "asc" }] });
+  }
+
+  setRolePermissions(role: UserRole, permissions: OperationPermission[], updatedBy?: string) {
+    const permissionSet = new Set(permissions);
+    return prisma.$transaction(
+      permissions.map((permission) =>
+        prisma.rolePermission.upsert({
+          where: { role_permission: { role, permission } },
+          create: { role, permission, enabled: permissionSet.has(permission), updatedBy },
+          update: { enabled: permissionSet.has(permission), updatedBy },
+        }),
+      ),
+    );
   }
 
   private async paginatedUsers<T extends Prisma.UserSelect>(where: Prisma.UserWhereInput, query: AdminListQueryDto, select: T) {

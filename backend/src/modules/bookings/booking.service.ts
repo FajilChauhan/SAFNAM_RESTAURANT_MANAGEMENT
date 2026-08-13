@@ -4,6 +4,7 @@ import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
 import type { AuthenticatedUser } from "../../types/request.types.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { restaurantService } from "../restaurant/restaurant.service.js";
 import type { AvailabilityQueryDto, CreateBookingDto, UpdateBookingDto } from "./dto/booking.dto.js";
 import { BookingRepository } from "./booking.repository.js";
 import { AvailabilityService } from "./services/availability.service.js";
@@ -149,20 +150,22 @@ export class BookingService extends BaseService {
     return this.bookingRepository.list(options);
   }
 
-  getAvailableTables(dto: AvailabilityQueryDto) {
+  async getAvailableTables(dto: AvailabilityQueryDto) {
+    const restaurant = await restaurantService.ensureSingle();
     const window = createTimeWindow(dto);
     return this.availabilityService.getTableAvailability({
-      restaurantId: dto.restaurantId,
+      restaurantId: dto.restaurantId ?? restaurant.id,
       floorId: dto.floorId,
       members: dto.members,
       window,
     });
   }
 
-  getAvailableRooms(dto: AvailabilityQueryDto) {
+  async getAvailableRooms(dto: AvailabilityQueryDto) {
+    const restaurant = await restaurantService.ensureSingle();
     const window = createTimeWindow(dto);
     return this.availabilityService.getRoomAvailability({
-      restaurantId: dto.restaurantId,
+      restaurantId: dto.restaurantId ?? restaurant.id,
       members: dto.members,
       window,
     });

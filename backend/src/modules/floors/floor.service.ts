@@ -2,6 +2,7 @@ import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import { ApiError } from "../../utils/ApiError.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
+import { restaurantService } from "../restaurant/restaurant.service.js";
 import type { CreateFloorDto, UpdateFloorDto } from "./dto/floor.dto.js";
 import { FloorRepository } from "./floor.repository.js";
 
@@ -11,13 +12,15 @@ export class FloorService extends BaseService {
   }
 
   async create(dto: CreateFloorDto) {
-    const existingFloor = await this.floorRepository.findByRestaurantAndName(dto.restaurantId, dto.name);
+    const restaurant = await restaurantService.ensureSingle();
+    const restaurantId = dto.restaurantId ?? restaurant.id;
+    const existingFloor = await this.floorRepository.findByRestaurantAndName(restaurantId, dto.name);
 
     if (existingFloor) {
       throw new ApiError(409, "Floor name already exists for this restaurant", ERROR_CODES.RESOURCE_CONFLICT);
     }
 
-    return this.floorRepository.create(dto);
+    return this.floorRepository.create({ ...dto, restaurantId });
   }
 
   list(options: QueryOptions) {

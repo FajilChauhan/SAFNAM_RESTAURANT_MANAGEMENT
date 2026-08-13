@@ -73,3 +73,8 @@ export type UpdateEmployeeDto = z.infer<typeof updateEmployeeSchema>;
 export type OfferListQueryDto = z.infer<typeof offerListQuerySchema>;
 export type CreateOfferDto = z.infer<typeof createOfferSchema>;
 export type UpdateOfferDto = z.infer<typeof updateOfferSchema>;
+
+export const updateRolePermissionsSchema = z.object({
+  role: z.nativeEnum(UserRole),
+  permissions: z.array(z.string().trim().min(1)).default([]),
+});

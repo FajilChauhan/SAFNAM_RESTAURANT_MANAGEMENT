@@ -163,13 +163,15 @@ export default function AdminDashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["Manage Employees", "/admin/employees"],
-            ["Restaurant Settings", "/admin/settings"],
             ["Add Menu Item", "/admin/menu"],
-            ["Audit Logs", "/admin/audit-logs"],
+            ["Add Category", "/admin/categories"],
             ["Manage Tables", "/admin/tables"],
+            ["Manage Floors", "/admin/floors"],
             ["Manage Rooms", "/admin/rooms"],
-            ["Manage Categories", "/admin/categories"],
             ["View Bookings", "/admin/bookings"],
+            ["Create Offer", "/admin/offers"],
+            ["Restaurant Settings", "/admin/settings"],
+            ["Audit Logs", "/admin/audit-logs"],
           ].map(([label, path]) => (
             <button
               key={label}

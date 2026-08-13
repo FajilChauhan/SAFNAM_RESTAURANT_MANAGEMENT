@@ -24,8 +24,6 @@ const AdminRoutes = () => (
       <Route element={<AdminLayout />}>
         <Route index element={<AdminDashboardPage />} />
         <Route path="employees" element={<EmployeesPage />} />
-        <Route path="menu/categories" element={<MenuCategoriesPage />} />
-        <Route path="menu/items" element={<MenuItemsPage />} />
         <Route path="tables" element={<TablesPage />} />
         <Route path="floors" element={<FloorsPage />} />
         <Route path="rooms" element={<RoomsPage />} />

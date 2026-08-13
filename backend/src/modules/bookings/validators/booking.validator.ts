@@ -48,7 +48,7 @@ export const updateBookingSchema = z
 
 export const availabilityQuerySchema = z
   .object({
-    restaurantId: z.string().uuid(),
+    restaurantId: z.string().uuid().optional(),
     date: dateSchema,
     startTime: timeSchema,
     endTime: timeSchema.optional(),

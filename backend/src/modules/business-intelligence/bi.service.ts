@@ -77,12 +77,15 @@ export class BusinessIntelligenceService extends BaseService {
   }
 
   private resolveReportData(type: string, range: AnalyticsRange) {
-    if (type === "sales") return this.biRepository.revenue(range);
+    if (type === "sales" || type === "revenue") return this.biRepository.revenue(range);
     if (type === "gst") return this.biRepository.pendingBills(range);
-    if (type === "booking") return this.biRepository.bookings(range);
-    if (type === "payment") return this.biRepository.revenue(range);
-    if (type === "customer") return this.biRepository.customers(range);
-    if (type === "order") return this.biRepository.orders(range);
+    if (type === "booking" || type === "bookings") return this.biRepository.bookings(range);
+    if (type === "payment" || type === "payments") return this.biRepository.revenue(range);
+    if (type === "customer" || type === "customers") return this.biRepository.customers(range);
+    if (type === "order" || type === "orders") return this.biRepository.orders(range);
+    if (type === "menu" || type === "menu-performance") return this.biRepository.revenueByCategory(range);
+    if (type === "table" || type === "table-utilization") return this.biRepository.tables(range);
+    if (type === "room" || type === "room-utilization") return this.biRepository.rooms(range);
     throw new ApiError(400, "Unsupported report type");
   }
 

@@ -1,5 +1,6 @@
 import { PrismaClient, TableShape, TableStatus, RoomStatus } from "@prisma/client";
 import { hashPassword } from "../../src/utils/password.js";
+import { SINGLE_RESTAURANT_DEFAULTS, SINGLE_RESTAURANT_ID } from "../../src/modules/restaurant/singleRestaurant.config.js";
 
 const prisma = new PrismaClient();
 
@@ -18,20 +19,19 @@ const main = async () => {
   });
 
   const restaurant = await prisma.restaurant.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000001" },
-    update: {},
+    where: { id: SINGLE_RESTAURANT_ID },
+    update: {
+      deletedAt: null,
+    },
     create: {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "SAFNAM Restaurant",
-      phone: "9999999999",
-      email: "hello@safnam.local",
-      address: "SAFNAM Main Branch",
-      openingTime: "08:00",
-      closingTime: "23:00",
-      currency: "INR",
-      timezone: "Asia/Kolkata",
+      ...SINGLE_RESTAURANT_DEFAULTS,
       createdBy: admin.id,
     },
+  });
+
+  await prisma.restaurant.updateMany({
+    where: { id: { not: SINGLE_RESTAURANT_ID }, deletedAt: null },
+    data: { deletedAt: new Date() },
   });
 
   const groundFloor = await prisma.floor.upsert({

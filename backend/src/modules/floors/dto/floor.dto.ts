@@ -1,7 +1,7 @@
 import type { FloorStatus } from "@prisma/client";
 
 export type CreateFloorDto = {
-  restaurantId: string;
+  restaurantId?: string;
   name: string;
   displayOrder?: number;
   description?: string;

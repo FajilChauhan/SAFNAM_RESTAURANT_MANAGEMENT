@@ -4,6 +4,8 @@ import { BaseService } from "../../lib/BaseService.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { hashPassword } from "../../utils/password.js";
 import { OPERATION_PERMISSIONS, ROLE_PERMISSION_MAP } from "../operations/constants/operationPermissions.js";
+import type { OperationPermission } from "../operations/constants/operationPermissions.js";
+import { permissionService } from "../operations/services/permission.service.js";
 import { AdminRepository } from "./admin.repository.js";
 import type {
   AdminListQueryDto,
@@ -97,6 +99,11 @@ export class AdminService extends BaseService {
 
   permissions() {
     return Object.values(OPERATION_PERMISSIONS).map((permission) => ({ permission }));
+  }
+
+  async setRolePermissions(role: UserRole, permissions: OperationPermission[], adminId: string) {
+    this.ensure(role !== UserRole.ADMIN, "ADMIN permissions cannot be reduced from the admin panel");
+    return permissionService.setRolePermissions(role, permissions, adminId);
   }
 
   async health() {

@@ -14,7 +14,7 @@ class FloorController extends BaseController {
   });
 
   list = asyncHandler(async (req, res) => {
-    const options = parseApiQuery(req.query, ["restaurantId", "status"]);
+    const options = parseApiQuery(req.query, ["status"]);
     const result = await floorService.list(options);
 
     this.ok(res, "Floors fetched successfully", { floors: result.data }, result.meta);

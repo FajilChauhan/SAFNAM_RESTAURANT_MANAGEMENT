@@ -15,6 +15,7 @@ type OfferForm = {
   minSpend: string;
   maxDiscount: string;
   imageUrl: string;
+  imageFile: File | null;
   startsAt: string;
   endsAt: string;
   status: AdminOffer["status"];
@@ -30,6 +31,7 @@ const emptyOffer: OfferForm = {
   minSpend: "0",
   maxDiscount: "",
   imageUrl: "",
+  imageFile: null,
   startsAt: "",
   endsAt: "",
   status: "ACTIVE",
@@ -49,20 +51,20 @@ export default function OffersPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        title: form.title.trim(),
-        description: form.description.trim() || undefined,
-        code: form.code.trim() || undefined,
-        type: form.type,
-        discountType: form.discountType,
-        discountValue: Number(form.discountValue),
-        minSpend: Number(form.minSpend || 0),
-        maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : undefined,
-        imageUrl: form.imageUrl.trim() || undefined,
-        startsAt: new Date(form.startsAt).toISOString(),
-        endsAt: new Date(form.endsAt).toISOString(),
-        status: form.status,
-      };
+      const payload = new FormData();
+      payload.set("title", form.title.trim());
+      if (form.description.trim()) payload.set("description", form.description.trim());
+      if (form.code.trim()) payload.set("code", form.code.trim());
+      payload.set("type", form.type);
+      payload.set("discountType", form.discountType);
+      payload.set("discountValue", String(Number(form.discountValue)));
+      payload.set("minSpend", String(Number(form.minSpend || 0)));
+      if (form.maxDiscount) payload.set("maxDiscount", String(Number(form.maxDiscount)));
+      if (form.imageUrl.trim()) payload.set("imageUrl", form.imageUrl.trim());
+      if (form.imageFile) payload.set("image", form.imageFile);
+      payload.set("startsAt", new Date(form.startsAt).toISOString());
+      payload.set("endsAt", new Date(form.endsAt).toISOString());
+      payload.set("status", form.status);
       return editing ? adminApi.offers.update(editing.id, payload) : adminApi.offers.create(payload);
     },
     onSuccess: async () => {
@@ -74,6 +76,10 @@ export default function OffersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminApi.offers.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "offers"] }),
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AdminOffer["status"] }) => adminApi.offers.update(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "offers"] }),
   });
 
@@ -96,6 +102,7 @@ export default function OffersPage() {
       minSpend: String(offer.minSpend ?? 0),
       maxDiscount: offer.maxDiscount ? String(offer.maxDiscount) : "",
       imageUrl: offer.imageUrl ?? "",
+      imageFile: null,
       startsAt: toInputDateTime(offer.startsAt),
       endsAt: toInputDateTime(offer.endsAt),
       status: offer.status,
@@ -120,7 +127,7 @@ export default function OffersPage() {
 
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="flex justify-end">
-          <Button onClick={openCreate} leftIcon={<Plus size={16} />}>Create Offer</Button>
+          <Button onClick={openCreate} leftIcon={<Plus size={16} />}>Add Offer</Button>
         </div>
 
         {offersQuery.isError ? (
@@ -144,8 +151,9 @@ export default function OffersPage() {
                   <div className="text-emerald-700">Code: {offer.code ?? "No coupon code"}</div>
                   <div className="text-emerald-700">Valid until {new Date(offer.endsAt).toLocaleDateString()}</div>
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => openEdit(offer)}>Edit</Button>
+                  <Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: offer.id, status: offer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" })}>{offer.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
                   <Button
                     size="sm"
                     variant="danger"
@@ -160,7 +168,7 @@ export default function OffersPage() {
         )}
       </div>
 
-      <Modal isOpen={isOpen} onClose={closeModal} title={editing ? "Edit Offer" : "Create Offer"}>
+      <Modal isOpen={isOpen} onClose={closeModal} title={editing ? "Edit Offer" : "Add Offer"}>
         <div className="space-y-4">
           {error ? <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
           <Field label="Title"><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
@@ -198,10 +206,13 @@ export default function OffersPage() {
             <Field label="Starts At"><Input type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} /></Field>
             <Field label="Ends At"><Input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} /></Field>
           </div>
+          <Field label="Offer Image">
+            <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setForm({ ...form, imageFile: e.target.files?.[0] ?? null })} />
+          </Field>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={closeModal}>Cancel</Button>
             <Button disabled={!canSave} loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-              {editing ? "Save Changes" : "Create Offer"}
+              {editing ? "Save Changes" : "Add Offer"}
             </Button>
           </div>
         </div>

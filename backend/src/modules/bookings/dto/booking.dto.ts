@@ -21,7 +21,7 @@ export type UpdateBookingDto = Partial<
 };
 
 export type AvailabilityQueryDto = {
-  restaurantId: string;
+  restaurantId?: string;
   date: string;
   startTime: string;
   endTime?: string;

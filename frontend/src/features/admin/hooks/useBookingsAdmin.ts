@@ -11,14 +11,16 @@ export function useBookingsAdmin() {
         bookingNumber?: string;
         customer?: { fullName?: string; name?: string; phone?: string; email?: string };
         bookingType?: string;
-        table?: { tableNumber: string };
-        room?: { roomNumber: string };
+        table?: { tableNumber: string; capacity?: number; floor?: { name?: string } };
+        room?: { roomNumber: string; roomType?: string };
         date?: string;
         bookingDate?: string;
         startTime?: string;
         timeSlot?: string;
         guests?: number;
         members?: number;
+        endTime?: string;
+        paymentStatus?: string;
         status: string;
       }>;
     },

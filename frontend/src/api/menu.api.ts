@@ -2,8 +2,8 @@ import api from "./axios";
 
 export const menuApi = {
   getCategories: () => api.get("/api/menu/categories"),
-  createCategory: (data: unknown) => api.post("/api/menu/categories", data),
-  updateCategory: (id: string, data: unknown) => api.patch(`/api/menu/categories/${id}`, data),
+  createCategory: (data: unknown) => api.post("/api/menu/categories", data, data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined),
+  updateCategory: (id: string, data: unknown) => api.patch(`/api/menu/categories/${id}`, data, data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined),
   deleteCategory: (id: string) => api.delete(`/api/menu/categories/${id}`),
 
   getItems: (params?: { categoryId?: string; featured?: boolean; popular?: boolean; isVeg?: boolean; available?: boolean; search?: string }) =>

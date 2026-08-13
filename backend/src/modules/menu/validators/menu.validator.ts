@@ -11,7 +11,7 @@ const optionalUrlSchema = z.string().trim().url().max(500).optional();
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm");
 
 export const createCategorySchema = z.object({
-  restaurantId: uuidSchema,
+  restaurantId: uuidSchema.optional(),
   name: z.string().trim().min(2).max(100),
   description: z.string().trim().max(1000).optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),

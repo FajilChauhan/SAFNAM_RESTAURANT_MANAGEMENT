@@ -2,9 +2,9 @@ import { useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { floorApi } from "@/api/floor.api";
-import { restaurantApi } from "@/api/restaurant.api";
 import { Button, EmptyState, Input, Modal, PageHeader, Select, StatusChip } from "@/components/ui";
 import { getErrorMessage } from "@/utils/formatters";
+import { toast } from "@/utils/toast";
 
 type Floor = { id: string; name: string; description?: string; displayOrder?: number; status?: string; tables?: unknown[] };
 type Form = { name: string; description: string; displayOrder: string; status: string };
@@ -16,18 +16,17 @@ export default function FloorsPage() {
   const [editing, setEditing] = useState<Floor | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [error, setError] = useState("");
-  const restaurantQuery = useQuery({ queryKey: ["restaurant"], queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant });
   const floorsQuery = useQuery({ queryKey: ["admin", "floors"], queryFn: async () => (await floorApi.getFloors()).data.data.floors as Floor[] });
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { restaurantId: restaurantQuery.data?.id, name: form.name.trim(), description: form.description.trim() || undefined, displayOrder: Number(form.displayOrder || 0), status: form.status };
-      if (!payload.restaurantId && !editing) throw new Error("Restaurant setup is required before creating floors");
+      const payload = { name: form.name.trim(), description: form.description.trim() || undefined, displayOrder: Number(form.displayOrder || 0), status: form.status };
       return editing ? floorApi.updateFloor(editing.id, payload) : floorApi.createFloor(payload);
     },
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "floors"] }); closeModal(); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "floors"] }); toast.success(editing ? "Floor updated successfully." : "Floor created successfully."); closeModal(); },
     onError: (err) => setError(getErrorMessage(err)),
   });
-  const deleteMutation = useMutation({ mutationFn: (id: string) => floorApi.deleteFloor(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "floors"] }) });
+  const deleteMutation = useMutation({ mutationFn: (id: string) => floorApi.deleteFloor(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "floors"] }); toast.success("Floor deleted successfully."); }, onError: (err) => toast.error(getErrorMessage(err)) });
+  const statusMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => floorApi.updateFloor(id, { status }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "floors"] }); toast.success("Floor status updated."); }, onError: (err) => toast.error(getErrorMessage(err)) });
   const openCreate = () => { setEditing(null); setForm(emptyForm); setError(""); setIsOpen(true); };
   const openEdit = (floor: Floor) => { setEditing(floor); setForm({ name: floor.name, description: floor.description ?? "", displayOrder: String(floor.displayOrder ?? 0), status: floor.status ?? "ACTIVE" }); setError(""); setIsOpen(true); };
   const closeModal = () => { setIsOpen(false); setEditing(null); setForm(emptyForm); setError(""); };
@@ -42,7 +41,7 @@ export default function FloorsPage() {
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{floors.map((floor) => (
             <article key={floor.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{floor.name}</p><p className="text-sm text-slate-500">{floor.description ?? "No description"}</p><p className="mt-2 text-sm text-slate-600">{floor.tables?.length ?? 0} tables</p></div><StatusChip status={floor.status ?? "ACTIVE"} /></div>
-              <div className="mt-4 flex gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(floor)}>Edit</Button><Button size="sm" variant="danger" onClick={() => window.confirm(`Delete ${floor.name}?`) && deleteMutation.mutate(floor.id)}>Delete</Button></div>
+              <div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(floor)}>Edit</Button><Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: floor.id, status: floor.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" })}>{floor.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button><Button size="sm" variant="danger" onClick={() => window.confirm(`Delete ${floor.name}?`) && deleteMutation.mutate(floor.id)}>Delete</Button></div>
             </article>
           ))}</div>
         )}

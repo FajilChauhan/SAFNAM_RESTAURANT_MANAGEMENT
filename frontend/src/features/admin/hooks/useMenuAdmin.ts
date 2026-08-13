@@ -6,7 +6,7 @@ export function useMenuCategories() {
     queryKey: ["admin", "menu", "categories"],
     queryFn: async () => {
       const { data } = await menuApi.getCategories();
-      return data.data.categories as Array<{ id: string; name: string; description?: string; imageUrl?: string; status?: string; displayOrder?: number; restaurantId?: string }>;
+      return data.data.categories as Array<{ id: string; name: string; description?: string; imageUrl?: string; status?: string; displayOrder?: number }>;
     },
   });
 }

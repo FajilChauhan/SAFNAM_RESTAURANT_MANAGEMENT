@@ -344,6 +344,7 @@ model Room {
   capacity     Int
   pricePerDay  Decimal    @db.Decimal(10, 2)
   description  String?    @db.Text
+  imageUrl     String?    @db.VarChar(500)
   status       RoomStatus @default(AVAILABLE)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -952,4 +953,42 @@ model CustomerNotification {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("customer_notifications")
+}
+
+model RolePermission {
+  id         String   @id @default(uuid()) @db.Uuid
+  role       UserRole
+  permission String   @db.VarChar(120)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?  @db.Uuid
+
+  @@unique([role, permission])
+  @@index([role])
+  @@index([enabled])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  actorName  String?  @db.VarChar(120)
+  actorRole  UserRole?
+  action     String   @db.VarChar(120)
+  module     String   @db.VarChar(80)
+  entityType String?  @db.VarChar(80)
+  entityId   String?  @db.VarChar(80)
+  entityName String?  @db.VarChar(160)
+  metadata   Json?
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([actorRole])
+  @@index([action])
+  @@index([module])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

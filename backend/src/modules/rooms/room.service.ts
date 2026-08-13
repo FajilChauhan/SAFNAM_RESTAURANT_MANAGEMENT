@@ -3,6 +3,7 @@ import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { restaurantService } from "../restaurant/restaurant.service.js";
 import type { CreateRoomDto, UpdateRoomDto } from "./dto/room.dto.js";
 import { RoomRepository } from "./room.repository.js";
 
@@ -12,6 +13,7 @@ export class RoomService extends BaseService {
   }
 
   async create(dto: CreateRoomDto) {
+    const restaurant = await restaurantService.ensureSingle();
     const existingRoom = await this.roomRepository.findByRoomNumber(dto.roomNumber);
 
     if (existingRoom) {
@@ -20,6 +22,7 @@ export class RoomService extends BaseService {
 
     return this.roomRepository.create({
       ...dto,
+      restaurantId: dto.restaurantId ?? restaurant.id,
       pricePerDay: new Prisma.Decimal(dto.pricePerDay),
     });
   }

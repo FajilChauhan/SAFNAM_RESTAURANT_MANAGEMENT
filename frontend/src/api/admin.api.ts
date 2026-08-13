@@ -95,12 +95,14 @@ export const adminApi = {
   },
   offers: {
     list: (params?: PaginatedParams) => api.get<ApiEnvelope<{ offers: AdminOffer[] }>>("/api/admin/offers", { params }),
-    create: (data: Omit<AdminOffer, "id" | "createdAt" | "updatedAt">) => api.post<ApiEnvelope<{ offer: AdminOffer }>>("/api/admin/offers", data),
-    update: (id: string, data: Partial<AdminOffer>) => api.patch<ApiEnvelope<{ offer: AdminOffer }>>(`/api/admin/offers/${id}`, data),
+    create: (data: unknown) => api.post<ApiEnvelope<{ offer: AdminOffer }>>("/api/admin/offers", data, data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined),
+    update: (id: string, data: unknown) => api.patch<ApiEnvelope<{ offer: AdminOffer }>>(`/api/admin/offers/${id}`, data, data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined),
     remove: (id: string) => api.delete<ApiEnvelope<{ offer: AdminOffer }>>(`/api/admin/offers/${id}`),
   },
   roles: () => api.get<ApiEnvelope<{ roles: Array<{ role: UserRole; assignableToEmployee: boolean; permissions: string[] }> }>>("/api/admin/roles"),
   permissions: () => api.get<ApiEnvelope<{ permissions: Array<{ permission: string }> }>>("/api/admin/permissions"),
+  updateRolePermissions: (role: UserRole, permissions: string[]) =>
+    api.patch<ApiEnvelope<{ role: UserRole; permissions: string[] }>>("/api/admin/permissions/roles", { role, permissions }),
   auditLogs: (params?: PaginatedParams) => api.get<ApiEnvelope<{ audit: { activities: Array<Record<string, string>>; note: string } }>>("/api/admin/audit-logs", { params }),
   health: () => api.get<ApiEnvelope<{ health: { system: Record<string, string | number>; database: Record<string, string | number> } }>>("/api/admin/health"),
 };

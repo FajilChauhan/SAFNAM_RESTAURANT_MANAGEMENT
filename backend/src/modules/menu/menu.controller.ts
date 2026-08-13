@@ -28,7 +28,7 @@ class MenuController extends BaseController {
   });
 
   listCategories = asyncHandler(async (req, res) => {
-    const result = await menuService.listCategories(parseApiQuery(req.query, ["restaurantId", "status"]));
+    const result = await menuService.listCategories(parseApiQuery(req.query, ["status"]));
     this.ok(res, "Categories fetched successfully", { categories: result.data }, result.meta);
   });
 

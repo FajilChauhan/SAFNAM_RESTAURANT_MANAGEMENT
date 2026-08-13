@@ -2,13 +2,13 @@ import { useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { menuApi } from "@/api/menu.api";
-import { restaurantApi } from "@/api/restaurant.api";
 import { Button, EmptyState, Input, Modal, PageHeader, Select, StatusChip } from "@/components/ui";
 import { getErrorMessage } from "@/utils/formatters";
+import { toast } from "@/utils/toast";
 
-type Category = { id: string; restaurantId?: string; name: string; description?: string; imageUrl?: string; displayOrder?: number; status?: string };
-type Form = { name: string; description: string; displayOrder: string; status: string; imageUrl: string };
-const emptyForm: Form = { name: "", description: "", displayOrder: "0", status: "ACTIVE", imageUrl: "" };
+type Category = { id: string; name: string; description?: string; imageUrl?: string; displayOrder?: number; status?: string };
+type Form = { name: string; description: string; displayOrder: string; status: string; imageUrl: string; imageFile: File | null };
+const emptyForm: Form = { name: "", description: "", displayOrder: "0", status: "ACTIVE", imageUrl: "", imageFile: null };
 
 export default function MenuCategoriesPage() {
   const queryClient = useQueryClient();
@@ -17,24 +17,22 @@ export default function MenuCategoriesPage() {
   const [form, setForm] = useState<Form>(emptyForm);
   const [error, setError] = useState("");
 
-  const restaurantQuery = useQuery({ queryKey: ["restaurant"], queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant });
   const categoriesQuery = useQuery({ queryKey: ["admin", "menu", "categories"], queryFn: async () => (await menuApi.getCategories()).data.data.categories as Category[] });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        restaurantId: restaurantQuery.data?.id,
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        displayOrder: Number(form.displayOrder || 0),
-        status: form.status,
-        imageUrl: form.imageUrl.trim() || undefined,
-      };
-      if (!payload.restaurantId && !editing) throw new Error("Restaurant setup is required before creating categories");
+      const payload = new FormData();
+      payload.set("name", form.name.trim());
+      if (form.description.trim()) payload.set("description", form.description.trim());
+      payload.set("displayOrder", String(Number(form.displayOrder || 0)));
+      payload.set("status", form.status);
+      if (form.imageUrl.trim()) payload.set("imageUrl", form.imageUrl.trim());
+      if (form.imageFile) payload.set("image", form.imageFile);
       return editing ? menuApi.updateCategory(editing.id, payload) : menuApi.createCategory(payload);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "menu", "categories"] });
+      toast.success(editing ? "Category updated successfully." : "Category created successfully.");
       closeModal();
     },
     onError: (err) => setError(getErrorMessage(err)),
@@ -42,7 +40,14 @@ export default function MenuCategoriesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => menuApi.deleteCategory(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "menu", "categories"] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "menu", "categories"] }); toast.success("Category deleted successfully."); },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => menuApi.updateCategory(id, { status }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "menu", "categories"] }); toast.success("Category status updated."); },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setError(""); setIsOpen(true); };
@@ -54,6 +59,7 @@ export default function MenuCategoriesPage() {
       displayOrder: String(category.displayOrder ?? 0),
       status: category.status ?? "ACTIVE",
       imageUrl: category.imageUrl ?? "",
+      imageFile: null,
     });
     setError("");
     setIsOpen(true);
@@ -83,8 +89,9 @@ export default function MenuCategoriesPage() {
                   </div>
                   <StatusChip status={category.status ?? "ACTIVE"} />
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => openEdit(category)}>Edit</Button>
+                  <Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: category.id, status: category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" })}>{category.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
                   <Button size="sm" variant="danger" onClick={() => window.confirm(`Delete ${category.name}?`) && deleteMutation.mutate(category.id)}>Delete</Button>
                 </div>
               </article>
@@ -102,6 +109,7 @@ export default function MenuCategoriesPage() {
             <Field label="Status"><Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></Select></Field>
           </div>
           <Field label="Image URL"><Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} /></Field>
+          <Field label="Upload Image"><Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setForm({ ...form, imageFile: e.target.files?.[0] ?? null })} /></Field>
           <div className="flex justify-end gap-3"><Button variant="ghost" onClick={closeModal}>Cancel</Button><Button disabled={form.name.trim().length < 2} loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>Save</Button></div>
         </div>
       </Modal>
