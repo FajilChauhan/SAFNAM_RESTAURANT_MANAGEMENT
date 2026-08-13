@@ -6,7 +6,7 @@ export const operationsApi = {
   getOrders: (params?: { period?: string }) => api.get("/api/operations/orders/today", { params }),
 
   getEmployees: () => api.get("/api/admin/employees"),
-  createEmployee: (data: { name: string; email: string; phone: string; role: string; password: string }) =>
+  createEmployee: (data: { fullName: string; email?: string; phoneNumber: string; role: string; password: string }) =>
     api.post("/api/admin/employees", data),
   updateEmployee: (id: string, data: unknown) => api.patch(`/api/admin/employees/${id}`, data),
   deleteEmployee: (id: string) => api.delete(`/api/admin/employees/${id}`),
