@@ -133,6 +133,32 @@ export class AdminRepository {
     return this.paginatedUsers(where, query, customerSelect);
   }
 
+  async getCustomerStats() {
+    const [total, active, blocked, newCustomers, spending] = await Promise.all([
+      prisma.user.count({ where: { role: UserRole.CUSTOMER, deletedAt: null } }),
+      prisma.user.count({ where: { role: UserRole.CUSTOMER, status: UserStatus.ACTIVE, deletedAt: null } }),
+      prisma.user.count({ where: { role: UserRole.CUSTOMER, status: UserStatus.BLOCKED, deletedAt: null } }),
+      prisma.user.count({
+        where: {
+          role: UserRole.CUSTOMER,
+          deletedAt: null,
+          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // past 30 days
+        },
+      }),
+      prisma.user.aggregate({
+        where: { role: UserRole.CUSTOMER, deletedAt: null },
+        _sum: { totalSpending: true },
+      }),
+    ]);
+    return {
+      totalCustomers: total,
+      activeCustomers: active,
+      blockedCustomers: blocked,
+      newCustomers: newCustomers,
+      totalRevenue: (spending._sum.totalSpending ?? new Prisma.Decimal(0)).toString(),
+    };
+  }
+
   getCustomer(id: string) {
     return prisma.user.findFirst({
       where: { id, role: UserRole.CUSTOMER, deletedAt: null },

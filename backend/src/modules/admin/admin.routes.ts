@@ -16,6 +16,7 @@ adminRouter.patch("/employees/:id/status", adminController.updateEmployeeStatus)
 adminRouter.delete("/employees/:id", adminController.deleteEmployee);
 
 adminRouter.get("/customers", adminController.listCustomers);
+adminRouter.get("/customers/stats", adminController.customerStats);
 adminRouter.get("/customers/:id", adminController.getCustomer);
 adminRouter.patch("/customers/:id/status", adminController.updateCustomerStatus);
 

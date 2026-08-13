@@ -61,6 +61,10 @@ export class AdminService extends BaseService {
     return this.adminRepository.listCustomers(query);
   }
 
+  async getCustomerStats() {
+    return this.adminRepository.getCustomerStats();
+  }
+
   async getCustomer(id: string) {
     return this.ensureExists(await this.adminRepository.getCustomer(id), "Customer not found");
   }

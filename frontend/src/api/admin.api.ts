@@ -92,6 +92,7 @@ export const adminApi = {
     list: (params?: PaginatedParams) => api.get<ApiEnvelope<{ customers: AdminCustomer[] }>>("/api/admin/customers", { params }),
     get: (id: string) => api.get<ApiEnvelope<{ customer: AdminCustomer }>>(`/api/admin/customers/${id}`),
     status: (id: string, status: UserStatus) => api.patch<ApiEnvelope<{ customer: AdminCustomer }>>(`/api/admin/customers/${id}/status`, { status }),
+    stats: () => api.get<ApiEnvelope<{ totalCustomers: number; activeCustomers: number; blockedCustomers: number; newCustomers: number; totalRevenue: string }>>("/api/admin/customers/stats"),
   },
   offers: {
     list: (params?: PaginatedParams) => api.get<ApiEnvelope<{ offers: AdminOffer[] }>>("/api/admin/offers", { params }),
