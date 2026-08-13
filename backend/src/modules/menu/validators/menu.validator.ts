@@ -7,7 +7,15 @@ import {
 import { z } from "zod";
 
 const uuidSchema = z.string().uuid();
-const optionalUrlSchema = z.string().trim().url().max(500).optional();
+const optionalUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine(
+    (val) => val === "" || val.startsWith("/") || val.startsWith("http://") || val.startsWith("https://"),
+    { message: "Must be a valid URL or relative path" }
+  )
+  .optional();
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm");
 
 export const createCategorySchema = z.object({
@@ -24,6 +32,12 @@ export const updateCategorySchema = createCategorySchema
   .partial()
   .refine((data) => Object.keys(data).length > 0, "At least one field is required");
 
+const booleanCoerce = z.preprocess((val) => {
+  if (val === "true" || val === true) return true;
+  if (val === "false" || val === false) return false;
+  return undefined;
+}, z.boolean().optional());
+
 export const createMenuItemSchema = z.object({
   categoryId: uuidSchema,
   name: z.string().trim().min(2).max(150),
@@ -34,8 +48,8 @@ export const createMenuItemSchema = z.object({
   foodType: z.nativeEnum(FoodType),
   spicyLevel: z.nativeEnum(SpicyLevel).optional(),
   status: z.nativeEnum(MenuEntityStatus).optional(),
-  isTodaySpecial: z.coerce.boolean().optional(),
-  isAvailable: z.coerce.boolean().optional(),
+  isTodaySpecial: booleanCoerce,
+  isAvailable: booleanCoerce,
 });
 
 export const updateMenuItemSchema = createMenuItemSchema

@@ -112,7 +112,7 @@ class AdminController extends BaseController {
     this.ok(res, "Audit activity fetched successfully", { audit });
   });
 
-  customerStats = asyncHandler(async (req, res) => {
+  customerStats = asyncHandler(async (_req, res) => {
     const stats = await adminService.getCustomerStats();
     this.ok(res, "Customer statistics fetched successfully", stats);
   });

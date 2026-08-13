@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary-50: var(--color-emerald-50);
+  --color-primary-600: var(--color-emerald-600);
+  --color-primary-700: var(--color-emerald-700);
+  --color-secondary-400: var(--color-amber-400);
+  --color-secondary-500: var(--color-amber-500);
+  --color-secondary-600: var(--color-amber-600);
+  --color-danger: var(--color-red-650);
+}
+
 .admin-sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.35) transparent;

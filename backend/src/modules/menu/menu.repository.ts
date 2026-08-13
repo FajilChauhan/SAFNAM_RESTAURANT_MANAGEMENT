@@ -35,7 +35,21 @@ export class MenuRepository {
       ? ({ [options.sort]: options.order } as Prisma.MenuCategoryOrderByWithRelationInput)
       : ({ displayOrder: "asc" } satisfies Prisma.MenuCategoryOrderByWithRelationInput);
     const [data, total] = await Promise.all([
-      prisma.menuCategory.findMany({ where, skip: options.skip, take: options.limit, orderBy }),
+      prisma.menuCategory.findMany({
+        where,
+        skip: options.skip,
+        take: options.limit,
+        orderBy,
+        include: {
+          _count: {
+            select: {
+              items: {
+                where: { deletedAt: null },
+              },
+            },
+          },
+        },
+      }),
       prisma.menuCategory.count({ where }),
     ]);
     return { data, meta: createPaginationMeta(total, options) };
