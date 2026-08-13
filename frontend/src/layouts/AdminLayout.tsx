@@ -101,7 +101,7 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className={cn("sticky top-0 flex h-screen flex-col bg-slate-950 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
+      <aside className={cn("sticky top-0 flex h-screen flex-col bg-gray-900 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
           <div className={cn("transition-all", collapsed && "opacity-0")}>
             <div className="font-display text-xl font-bold text-amber-400">SAFNAM</div>
@@ -143,7 +143,7 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <div className={cn("shrink-0 border-t border-white/10 bg-slate-950 p-4", collapsed && "p-2")}>
+        <div className={cn("shrink-0 border-t border-white/10 bg-gray-900 p-4", collapsed && "p-2")}>
           <div className={cn("mb-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3", collapsed && "justify-center")}>
             <Avatar name={user?.name ?? "Administrator"} />
             {!collapsed ? (
@@ -167,24 +167,37 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
+      <div className="flex-1 flex flex-col min-h-screen bg-gray-50">
+        {/* Top header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-10">
           <div>
-            <h1 className="font-display text-2xl font-bold text-gray-900">{title}</h1>
-            <p className="text-xs font-medium text-slate-500">{restaurantName}</p>
+            <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+            <p className="text-xs text-gray-400">SAFNAM Restaurant</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => navigate("/admin/notifications")} className="relative rounded-xl p-2 text-gray-600 hover:bg-gray-100">
-              <Bell size={18} />
-              {notificationCount ? <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">{notificationCount}</span> : null}
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/notifications")}
+              className="relative p-2 rounded-xl hover:bg-gray-100 transition-all text-gray-600"
+            >
+              <Bell size={20} />
+              {notificationCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
             </button>
-            <button type="button" onClick={() => navigate("/admin/settings")} className="hidden rounded-2xl border border-gray-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50 sm:block">
-              {user?.name ?? "Administrator"}
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-sm font-bold">{user?.name?.charAt(0)}</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+            </div>
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-auto bg-gray-50 p-6">
+        {/* Page content */}
+        <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
       </div>
