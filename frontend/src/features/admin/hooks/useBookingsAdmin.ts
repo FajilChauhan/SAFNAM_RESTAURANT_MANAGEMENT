@@ -1,28 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { bookingApi } from "@/api/booking.api";
+import { bookingApi, type Booking, type BookingListParams, type BookingType } from "@/api/booking.api";
 
-export function useBookingsAdmin() {
+/** Hook to fetch all bookings for the admin panel, with optional filters. */
+export function useBookingsAdmin(params?: BookingListParams) {
   return useQuery({
-    queryKey: ["admin", "bookings"],
+    queryKey: ["admin", "bookings", params],
     queryFn: async () => {
-      const { data } = await bookingApi.getAllBookings();
-      return data.data.bookings as Array<{
-        id: string;
-        bookingNumber?: string;
-        customer?: { fullName?: string; name?: string; phone?: string; email?: string };
-        bookingType?: string;
-        table?: { tableNumber: string; capacity?: number; floor?: { name?: string } };
-        room?: { roomNumber: string; roomType?: string };
-        date?: string;
-        bookingDate?: string;
-        startTime?: string;
-        timeSlot?: string;
-        guests?: number;
-        members?: number;
-        endTime?: string;
-        paymentStatus?: string;
-        status: string;
-      }>;
+      const { data } = await bookingApi.listBookings({ limit: 200, ...params });
+      return data.data.bookings as Booking[];
     },
+    staleTime: 30_000,
   });
+}
+
+/** Narrow helper: filter bookings by type client-side */
+export function filterBookingsByType(bookings: Booking[], type: BookingType) {
+  return bookings.filter((b) => b.bookingType === type);
 }
