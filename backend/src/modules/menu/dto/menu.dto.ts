@@ -11,7 +11,7 @@ export type CreateCategoryDto = {
   description?: string;
   displayOrder?: number;
   status?: MenuEntityStatus;
-  imageUrl?: string;
+  imageUrl?: string | null;
 };
 
 export type UpdateCategoryDto = Partial<Omit<CreateCategoryDto, "restaurantId">>;
@@ -22,7 +22,7 @@ export type CreateMenuItemDto = {
   description?: string;
   price: number;
   preparationTimeMin: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   foodType: FoodType;
   spicyLevel?: SpicyLevel;
   status?: MenuEntityStatus;

@@ -8,6 +8,8 @@ import { getErrorMessage, formatCurrency } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
 import { Link } from "react-router-dom";
 
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80";
+
 type MenuItem = {
   id: string;
   categoryId?: string;
@@ -72,6 +74,7 @@ export default function MenuItemsPage() {
   const [availFilter, setAvailFilter] = useState("");
   const [formError, setFormError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isImageDeleted, setIsImageDeleted] = useState(false);
 
   // Queries
   const categoriesQuery = useQuery({
@@ -134,6 +137,8 @@ export default function MenuItemsPage() {
 
       if (form.imageFile) {
         payload.append("image", form.imageFile);
+      } else if (isImageDeleted) {
+        payload.append("imageUrl", "");
       } else if (form.imageUrl.trim()) {
         payload.append("imageUrl", form.imageUrl.trim());
       } else if (editing?.imageUrl) {
@@ -196,7 +201,7 @@ export default function MenuItemsPage() {
 
   // Image Helper
   const getImageUrl = (url?: string) => {
-    if (!url) return "";
+    if (!url) return FALLBACK_IMAGE;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
     const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     return `${baseUrl.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
@@ -207,6 +212,7 @@ export default function MenuItemsPage() {
     if (file) {
       setForm((prev) => ({ ...prev, imageFile: file, imageUrl: "" }));
       setPreviewUrl(URL.createObjectURL(file));
+      setIsImageDeleted(false);
     }
   };
 
@@ -214,11 +220,13 @@ export default function MenuItemsPage() {
     const url = e.target.value;
     setForm((prev) => ({ ...prev, imageUrl: url, imageFile: null }));
     setPreviewUrl(url ? getImageUrl(url) : null);
+    setIsImageDeleted(url ? false : true);
   };
 
   const clearImage = () => {
     setForm((prev) => ({ ...prev, imageFile: null, imageUrl: "" }));
     setPreviewUrl(null);
+    setIsImageDeleted(true);
   };
 
   // Modals Handlers
@@ -230,6 +238,7 @@ export default function MenuItemsPage() {
     setEditing(null);
     setForm(emptyForm(activeCategories[0].id));
     setPreviewUrl(null);
+    setIsImageDeleted(false);
     setFormError("");
     setIsOpen(true);
   };
@@ -251,6 +260,7 @@ export default function MenuItemsPage() {
       isAvailable: item.isAvailable ?? true,
     });
     setPreviewUrl(item.imageUrl ? getImageUrl(item.imageUrl) : null);
+    setIsImageDeleted(false);
     setFormError("");
     setIsOpen(true);
   };
@@ -260,6 +270,7 @@ export default function MenuItemsPage() {
     setEditing(null);
     setForm(emptyForm());
     setPreviewUrl(null);
+    setIsImageDeleted(false);
     setFormError("");
   };
 
@@ -283,7 +294,7 @@ export default function MenuItemsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Menu Items</h1>
           <p className="text-sm text-slate-500">Create and manage the SAFNAM food menu</p>
         </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />}>
+        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
           Add Menu Item
         </Button>
       </div>
@@ -412,18 +423,15 @@ export default function MenuItemsPage() {
                   <tr key={item.id} className="hover:bg-slate-50/50 transition">
                     <td className="px-6 py-4">
                       <div className="h-12 w-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-100 flex items-center justify-center">
-                        {item.imageUrl ? (
-                          <img
-                            src={getImageUrl(item.imageUrl)}
-                            alt={item.name}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <HelpCircle className="h-5 w-5 text-slate-400" />
-                        )}
+                        <img
+                          src={getImageUrl(item.imageUrl)}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            e.currentTarget.src = FALLBACK_IMAGE;
+                          }}
+                        />
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -705,6 +713,7 @@ export default function MenuItemsPage() {
                         src={previewUrl}
                         alt="Preview"
                         className="h-full w-full object-cover animate-fade-in"
+                        crossOrigin="anonymous"
                         onError={(e) => {
                           e.currentTarget.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500";
                         }}
@@ -754,6 +763,7 @@ export default function MenuItemsPage() {
                 disabled={!isFormValid}
                 loading={saveMutation.isPending}
                 onClick={() => saveMutation.mutate()}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
               >
                 Save
               </Button>

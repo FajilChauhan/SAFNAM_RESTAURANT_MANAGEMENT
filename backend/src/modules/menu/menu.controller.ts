@@ -16,12 +16,19 @@ import {
   updateVariantSchema,
 } from "./validators/menu.validator.js";
 
+const parseImageUrlField = (file?: Express.Multer.File, bodyImageUrl?: string | null) => {
+  const uploadedUrl = getUploadedFileUrl(file);
+  if (uploadedUrl) return uploadedUrl;
+  if (bodyImageUrl === "" || bodyImageUrl === "null" || bodyImageUrl === null) return null;
+  return bodyImageUrl;
+};
+
 class MenuController extends BaseController {
   createCategory = asyncHandler(async (req, res) => {
     const category = await menuService.createCategory(
       createCategorySchema.parse({
         ...req.body,
-        imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+        imageUrl: parseImageUrlField(req.file, req.body.imageUrl),
       }),
     );
     this.created(res, "Category created successfully", { category });
@@ -37,7 +44,7 @@ class MenuController extends BaseController {
       uuidSchema.parse(req.params.id),
       updateCategorySchema.parse({
         ...req.body,
-        imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+        imageUrl: parseImageUrlField(req.file, req.body.imageUrl),
       }),
     );
     this.ok(res, "Category updated successfully", { category });
@@ -52,7 +59,7 @@ class MenuController extends BaseController {
     const item = await menuService.createItem(
       createMenuItemSchema.parse({
         ...req.body,
-        imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+        imageUrl: parseImageUrlField(req.file, req.body.imageUrl),
       }),
     );
     this.created(res, "Menu item created successfully", { item });
@@ -70,7 +77,7 @@ class MenuController extends BaseController {
       uuidSchema.parse(req.params.id),
       updateMenuItemSchema.parse({
         ...req.body,
-        imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+        imageUrl: parseImageUrlField(req.file, req.body.imageUrl),
       }),
     );
     this.ok(res, "Menu item updated successfully", { item });

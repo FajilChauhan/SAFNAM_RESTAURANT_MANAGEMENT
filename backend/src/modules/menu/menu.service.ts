@@ -1,4 +1,6 @@
 import { MenuAvailabilityType, MenuEntityStatus, Prisma } from "@prisma/client";
+import fs from "node:fs";
+import path from "node:path";
 import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
@@ -16,6 +18,19 @@ import type {
   UpdateVariantDto,
 } from "./dto/menu.dto.js";
 import { MenuRepository } from "./menu.repository.js";
+
+function deletePhysicalFile(relativeUrl: string | null | undefined) {
+  try {
+    if (!relativeUrl || !relativeUrl.startsWith("/uploads/")) return;
+    const relativePath = relativeUrl.replace(/^\/uploads\//, "");
+    const absolutePath = path.resolve("uploads", relativePath);
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+    }
+  } catch (error) {
+    console.error("Failed to delete physical file:", error);
+  }
+}
 
 export class MenuService extends BaseService {
   constructor(private readonly menuRepository: MenuRepository) {
@@ -38,15 +53,19 @@ export class MenuService extends BaseService {
     if (dto.name && dto.name !== category.name) {
       await this.ensureCategoryNameAvailable(category.restaurantId, dto.name);
     }
+    if (dto.imageUrl !== undefined && dto.imageUrl !== category.imageUrl) {
+      deletePhysicalFile(category.imageUrl);
+    }
     return this.menuRepository.updateCategory(id, dto);
   }
 
   async deleteCategory(id: string) {
-    await this.getCategory(id);
+    const category = await this.getCategory(id);
     const itemCount = await this.menuRepository.countItemsByCategory(id);
     if (itemCount > 0) {
       throw new ApiError(409, "Category cannot be deleted while menu items exist", ERROR_CODES.RESOURCE_CONFLICT);
     }
+    deletePhysicalFile(category.imageUrl);
     await this.menuRepository.deleteCategory(id);
   }
 
@@ -74,6 +93,9 @@ export class MenuService extends BaseService {
       if (category.status !== MenuEntityStatus.ACTIVE) {
         throw new ApiError(400, "Cannot move item to an inactive category");
       }
+    }
+    if (dto.imageUrl !== undefined && dto.imageUrl !== item.imageUrl) {
+      deletePhysicalFile(item.imageUrl);
     }
     return this.menuRepository.updateItem(id, {
       ...dto,

@@ -12,9 +12,10 @@ const optionalUrlSchema = z
   .trim()
   .max(500)
   .refine(
-    (val) => val === "" || val.startsWith("/") || val.startsWith("http://") || val.startsWith("https://"),
+    (val) => !val || val === "" || val.startsWith("/") || val.startsWith("http://") || val.startsWith("https://"),
     { message: "Must be a valid URL or relative path" }
   )
+  .nullable()
   .optional();
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm");
 

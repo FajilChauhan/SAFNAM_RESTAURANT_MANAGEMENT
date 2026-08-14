@@ -862,7 +862,7 @@ function CreateBookingModal({
   const customersQuery = useQuery({
     queryKey: ["admin", "customers", "select"],
     queryFn: async () => {
-      const { data } = await adminApi.customers.list({ limit: 200 });
+      const { data } = await adminApi.customers.list({ limit: 100 });
       return data.data.customers;
     },
     staleTime: 60_000,

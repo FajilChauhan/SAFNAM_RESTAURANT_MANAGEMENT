@@ -47,6 +47,7 @@ export default function MenuCategoriesPage() {
   const [search, setSearch] = useState("");
   const [formError, setFormError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isImageDeleted, setIsImageDeleted] = useState(false);
 
   // Queries
   const categoriesQuery = useQuery({
@@ -80,6 +81,8 @@ export default function MenuCategoriesPage() {
 
       if (form.imageFile) {
         payload.append("image", form.imageFile);
+      } else if (isImageDeleted) {
+        payload.append("imageUrl", "");
       } else if (form.imageUrl.trim()) {
         payload.append("imageUrl", form.imageUrl.trim());
       } else if (editing?.imageUrl) {
@@ -141,6 +144,7 @@ export default function MenuCategoriesPage() {
     if (file) {
       setForm((prev) => ({ ...prev, imageFile: file, imageUrl: "" }));
       setPreviewUrl(URL.createObjectURL(file));
+      setIsImageDeleted(false);
     }
   };
 
@@ -148,11 +152,13 @@ export default function MenuCategoriesPage() {
     const url = e.target.value;
     setForm((prev) => ({ ...prev, imageUrl: url, imageFile: null }));
     setPreviewUrl(url ? getImageUrl(url) : null);
+    setIsImageDeleted(url ? false : true);
   };
 
   const clearImage = () => {
     setForm((prev) => ({ ...prev, imageFile: null, imageUrl: "" }));
     setPreviewUrl(null);
+    setIsImageDeleted(true);
   };
 
   // Modal Handlers
@@ -160,6 +166,7 @@ export default function MenuCategoriesPage() {
     setEditing(null);
     setForm(emptyForm);
     setPreviewUrl(null);
+    setIsImageDeleted(false);
     setFormError("");
     setIsOpen(true);
   };
@@ -175,6 +182,7 @@ export default function MenuCategoriesPage() {
       imageFile: null,
     });
     setPreviewUrl(category.imageUrl ? getImageUrl(category.imageUrl) : null);
+    setIsImageDeleted(false);
     setFormError("");
     setIsOpen(true);
   };
@@ -184,6 +192,7 @@ export default function MenuCategoriesPage() {
     setEditing(null);
     setForm(emptyForm);
     setPreviewUrl(null);
+    setIsImageDeleted(false);
     setFormError("");
   };
 
@@ -208,7 +217,7 @@ export default function MenuCategoriesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Categories</h1>
           <p className="text-sm text-slate-500">Manage menu categories for SAFNAM Restaurant</p>
         </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />}>
+        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
           Add Category
         </Button>
       </div>
@@ -263,6 +272,7 @@ export default function MenuCategoriesPage() {
                   src={getImageUrl(category.imageUrl)}
                   alt={category.name}
                   className="h-full w-full object-cover"
+                  crossOrigin="anonymous"
                   onError={(e) => {
                     e.currentTarget.src = FALLBACK_IMAGE;
                   }}
@@ -415,6 +425,7 @@ export default function MenuCategoriesPage() {
                         src={previewUrl}
                         alt="Preview"
                         className="h-full w-full object-cover animate-fade-in"
+                        crossOrigin="anonymous"
                         onError={(e) => {
                           e.currentTarget.src = FALLBACK_IMAGE;
                         }}
@@ -464,6 +475,7 @@ export default function MenuCategoriesPage() {
                 disabled={!isFormValid}
                 loading={saveMutation.isPending}
                 onClick={() => saveMutation.mutate()}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
               >
                 Save
               </Button>
