@@ -28,6 +28,11 @@ bookingRouter.get(
   bookingController.list,
 );
 bookingRouter.get(
+  "/customer/:customerId/active-reward",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.CUSTOMER),
+  bookingController.activeReward,
+);
+bookingRouter.get(
   "/:id",
   authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.CUSTOMER),
   bookingController.get,

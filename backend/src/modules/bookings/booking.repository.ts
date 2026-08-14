@@ -162,8 +162,30 @@ export class BookingRepository {
           email: true,
         },
       },
-      table: true,
+      table: {
+        include: {
+          floor: true,
+        },
+      },
       room: true,
+      guests: {
+        where: { deletedAt: null },
+      },
+      appliedOffer: true,
+      invoice: {
+        include: {
+          payments: {
+            where: { deletedAt: null },
+            orderBy: { paidAt: "desc" },
+          },
+        },
+      },
+      orders: {
+        where: { deletedAt: null },
+        include: {
+          items: true,
+        },
+      },
     } satisfies Prisma.BookingInclude;
   }
 }

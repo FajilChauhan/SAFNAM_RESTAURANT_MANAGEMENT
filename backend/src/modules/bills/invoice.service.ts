@@ -29,7 +29,13 @@ export class InvoiceService extends BaseService {
     }
 
     const baseItems = this.buildBaseItems(booking, actor.id);
+    const discountSource = booking.discountSource;
+    const discountType = booking.discountSource === "OFFER" ? booking.appliedOffer?.discountType : (booking.discountSource === "GAME" ? DiscountType.PERCENTAGE : null);
+    const discountValue = booking.discountPercentage;
+
     const totals = this.calculateTotals(baseItems, {
+      discountType: discountType ?? undefined,
+      discountValue: discountValue,
       cgstRate: new Prisma.Decimal(dto.cgstRate ?? 0),
       sgstRate: new Prisma.Decimal(dto.sgstRate ?? 0),
       igstRate: new Prisma.Decimal(dto.igstRate ?? 0),
@@ -40,6 +46,9 @@ export class InvoiceService extends BaseService {
         invoiceNumber: await this.generateInvoiceNumber(),
         bookingId: booking.id,
         status: InvoiceStatus.GENERATED,
+        discountSource,
+        discountType,
+        discountValue,
         ...totals,
         generatedAt: new Date(),
         createdBy: actor.id,
@@ -118,15 +127,27 @@ export class InvoiceService extends BaseService {
   private async recalculate(invoiceId: string, actorId: string) {
     const invoice = this.ensureExists(await this.invoiceRepository.findInvoiceById(invoiceId), "Invoice not found");
     this.ensureInvoiceEditable(invoice);
+    const booking = this.ensureExists(await this.invoiceRepository.findBookingForInvoice(invoice.bookingId), "Booking not found");
+
+    const discountSource = booking.discountSource;
+    const discountType = booking.discountSource === "OFFER" ? booking.appliedOffer?.discountType : (booking.discountSource === "GAME" ? DiscountType.PERCENTAGE : null);
+    const discountValue = booking.discountPercentage;
+
     const totals = this.calculateTotals(invoice.items, {
-      discountType: invoice.discountType ?? undefined,
-      discountValue: invoice.discountValue,
+      discountType: discountType ?? undefined,
+      discountValue: discountValue,
       cgstRate: invoice.cgstRate,
       sgstRate: invoice.sgstRate,
       igstRate: invoice.igstRate,
       paidAmount: invoice.paidAmount,
     });
-    return this.invoiceRepository.updateInvoice(invoice.id, { ...totals, updatedBy: actorId });
+    return this.invoiceRepository.updateInvoice(invoice.id, {
+      discountSource,
+      discountType,
+      discountValue,
+      ...totals,
+      updatedBy: actorId,
+    });
   }
 
   private buildBaseItems(booking: NonNullable<Awaited<ReturnType<InvoiceRepository["findBookingForInvoice"]>>>, actorId: string) {

@@ -2,7 +2,16 @@ import { RoomStatus } from "@prisma/client";
 import { z } from "zod";
 
 const priceSchema = z.coerce.number().positive();
-const optionalUrlSchema = z.string().trim().url().max(500).optional();
+const optionalUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine(
+    (val) => !val || val.startsWith("/") || val.startsWith("http://") || val.startsWith("https://"),
+    { message: "Must be a valid URL or relative path" }
+  )
+  .nullable()
+  .optional();
 
 export const createRoomSchema = z.object({
   restaurantId: z.string().uuid().optional(),

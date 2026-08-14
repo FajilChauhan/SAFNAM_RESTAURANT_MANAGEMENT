@@ -36,6 +36,70 @@ export type BookingRoom = {
   imageUrl?: string | null;
 };
 
+export type InvoiceItem = {
+  id: string;
+  type: "FOOD" | "ROOM" | "SERVICE" | "LAUNDRY" | "EXTRA_BED" | "CUSTOM_CHARGE";
+  description: string;
+  quantity: number;
+  unitPrice: string | number;
+  totalAmount: string | number;
+  isManualCharge: boolean;
+};
+
+export type Payment = {
+  id: string;
+  paymentNumber: string;
+  method: "CASH" | "UPI" | "CARD" | "WALLET" | "BANK_TRANSFER" | "GATEWAY";
+  amount: string | number;
+  transactionId?: string | null;
+  referenceNumber?: string | null;
+  paidAt: string;
+  status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "REFUNDED" | "PARTIALLY_REFUNDED";
+  remarks?: string | null;
+};
+
+export type BookingInvoice = {
+  id: string;
+  invoiceNumber: string;
+  status: "DRAFT" | "GENERATED" | "PARTIALLY_PAID" | "PAID" | "LOCKED" | "CANCELLED";
+  foodTotal: string | number;
+  roomTotal: string | number;
+  extraCharges: string | number;
+  discountType?: "PERCENTAGE" | "FIXED" | null;
+  discountValue: string | number;
+  discountTotal: string | number;
+  cgstAmount: string | number;
+  sgstAmount: string | number;
+  igstAmount: string | number;
+  taxTotal: string | number;
+  grandTotal: string | number;
+  paidAmount: string | number;
+  balanceAmount: string | number;
+  payments?: Payment[];
+};
+
+export type OrderItem = {
+  id: string;
+  itemNameSnapshot: string;
+  variantNameSnapshot?: string | null;
+  quantity: number;
+  unitPriceSnapshot: string | number;
+  variantPriceSnapshot: string | number;
+  discountSnapshot: string | number;
+  lineTotalSnapshot: string | number;
+  specialNotes?: string | null;
+};
+
+export type BookingOrder = {
+  id: string;
+  orderNumber: string;
+  status: "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "SERVED" | "CANCELLED";
+  subtotalSnapshot: string | number;
+  discountSnapshot: string | number;
+  totalSnapshot: string | number;
+  items: OrderItem[];
+};
+
 // ─── Booking record ────────────────────────────────────────────────────────────
 export type Booking = {
   id: string;
@@ -57,8 +121,10 @@ export type Booking = {
   createdAt: string;
   updatedAt: string;
   customer: BookingCustomer;
-  table?: BookingTable | null;
+  table?: (BookingTable & { floor?: { id: string; name: string } | null }) | null;
   room?: BookingRoom | null;
+  invoice?: BookingInvoice | null;
+  orders?: BookingOrder[];
 };
 
 // ─── Availability ─────────────────────────────────────────────────────────────
@@ -167,4 +233,10 @@ export const bookingApi = {
   /** Check out a booking */
   checkOut: (id: string) =>
     api.patch<{ success: true; data: { booking: Booking } }>(`/api/bookings/${id}/check-out`),
+
+  /** Get active game reward for a customer */
+  getActiveReward: (customerId: string) =>
+    api.get<{ success: true; data: { reward: { id: string; rewardCode: string; discountValue: number; expiresAt: string; status: string } | null } }>(
+      `/api/bookings/customer/${customerId}/active-reward`
+    ),
 };

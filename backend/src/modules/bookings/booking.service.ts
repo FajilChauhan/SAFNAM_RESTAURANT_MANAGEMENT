@@ -1,4 +1,4 @@
-import { BookingStatus, BookingType, RoomStatus, TableStatus, UserRole } from "@prisma/client";
+import { BookingStatus, BookingType, RoomStatus, TableStatus, UserRole, DiscountSource, RewardStatus } from "@prisma/client";
 import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
@@ -11,6 +11,7 @@ import { AvailabilityService } from "./services/availability.service.js";
 import { createTimeWindow, isWithinBusinessHours } from "./services/bookingTime.service.js";
 import { ConflictDetectionService } from "./services/conflictDetection.service.js";
 import type { TimeWindow } from "./types/booking.types.js";
+import { prisma } from "../../database/prisma.js";
 
 const TERMINAL_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -30,22 +31,128 @@ export class BookingService extends BaseService {
     await this.validateResource(dto, window);
     await this.ensureNoConflict(dto.bookingType, dto.tableId, dto.roomId, window);
 
-    return this.bookingRepository.create({
-      bookingNumber: await this.generateBookingNumber(),
-      customerId,
-      bookingType: dto.bookingType,
-      tableId: dto.bookingType === BookingType.TABLE ? dto.tableId : undefined,
-      roomId: dto.bookingType === BookingType.ROOM ? dto.roomId : undefined,
-      bookingDate: window.bookingDate,
-      startTime: window.startTime,
-      endTime: window.endTime,
-      startAt: window.startAt,
-      endAt: window.endAt,
-      members: dto.members,
-      notes: dto.notes,
-      source: dto.source,
-      status: BookingStatus.PENDING,
+    // ─── Guest Validation for Room Booking ──────────────────────────────────
+    if (dto.bookingType === BookingType.ROOM) {
+      if (!dto.guests || dto.guests.length !== dto.members) {
+        throw new ApiError(400, `Room booking requires guest details (Name & Aadhaar) for all ${dto.members} guests.`);
+      }
+    }
+
+    // ─── Discount / Offer Application ───────────────────────────────────────
+    let discountSource: DiscountSource = DiscountSource.NONE;
+    let discountPercentage = 0;
+    let appliedOfferId: string | undefined = undefined;
+    let gameRewardId: string | undefined = undefined;
+
+    if (dto.appliedOfferId && dto.useGameDiscount) {
+      throw new ApiError(400, "Cannot apply both offer and game discount. Please select only one.");
+    }
+
+    if (dto.appliedOfferId) {
+      const offer = await prisma.offer.findUnique({
+        where: { id: dto.appliedOfferId, deletedAt: null },
+      });
+
+      if (!offer || offer.status !== "ACTIVE") {
+        throw new ApiError(400, "Selected offer is not active or available.");
+      }
+
+      const now = new Date();
+      if (now < offer.startsAt || now > offer.endsAt) {
+        throw new ApiError(400, "Selected offer is outside its validity period.");
+      }
+
+      // Check offer applicability
+      if (dto.bookingType === BookingType.ROOM && offer.applicableTo === "TABLE") {
+        throw new ApiError(400, "Selected offer is only valid for table bookings.");
+      }
+      if (dto.bookingType === BookingType.TABLE && offer.applicableTo === "ROOM") {
+        throw new ApiError(400, "Selected offer is only valid for room bookings.");
+      }
+
+      discountSource = DiscountSource.OFFER;
+      discountPercentage = Number(offer.discountValue);
+      appliedOfferId = offer.id;
+    } else if (dto.useGameDiscount) {
+      const reward = await prisma.gameReward.findFirst({
+        where: {
+          customerId,
+          status: RewardStatus.ACTIVE,
+          expiresAt: { gte: new Date() },
+          deletedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!reward) {
+        throw new ApiError(400, "No active game discount found for this customer.");
+      }
+
+      const value = Number(reward.discountValue);
+      if (value > 15) {
+        throw new ApiError(400, "Game discount exceeds maximum allowed limit of 15%.");
+      }
+
+      discountSource = DiscountSource.GAME;
+      discountPercentage = value;
+      gameRewardId = reward.id;
+    }
+
+    // Create the booking
+    const booking = await prisma.$transaction(async (tx) => {
+      const created = await tx.booking.create({
+        data: {
+          bookingNumber: await this.generateBookingNumber(),
+          customerId,
+          bookingType: dto.bookingType,
+          tableId: dto.bookingType === BookingType.TABLE ? dto.tableId : undefined,
+          roomId: dto.bookingType === BookingType.ROOM ? dto.roomId : undefined,
+          bookingDate: window.bookingDate,
+          startTime: window.startTime,
+          endTime: window.endTime,
+          startAt: window.startAt,
+          endAt: window.endAt,
+          members: dto.members,
+          notes: dto.notes,
+          source: dto.source,
+          status: BookingStatus.PENDING,
+          discountSource,
+          discountPercentage,
+          appliedOfferId,
+          guests: dto.bookingType === BookingType.ROOM && dto.guests ? {
+            create: dto.guests.map((g) => ({
+              fullName: g.fullName,
+              aadhaarNumber: g.aadhaarNumber,
+            })),
+          } : undefined,
+        },
+        include: {
+          customer: {
+            select: { id: true, fullName: true, phoneNumber: true, email: true },
+          },
+          table: { include: { floor: true } },
+          room: true,
+          appliedOffer: true,
+          guests: { where: { deletedAt: null } },
+        },
+      });
+
+      // Consume game reward if used
+      if (gameRewardId) {
+        await tx.gameReward.update({
+          where: { id: gameRewardId },
+          data: {
+            bookingId: created.id,
+            status: RewardStatus.USED,
+            usedAt: new Date(),
+          },
+        });
+      }
+
+      return created;
     });
+
+    return booking;
   }
 
   async update(id: string, dto: UpdateBookingDto) {
@@ -74,28 +181,137 @@ export class BookingService extends BaseService {
           endAt: booking.endAt,
         };
 
+    const finalMembers = dto.members ?? booking.members;
+
     await this.validateResource(
       {
         bookingType,
         tableId,
         roomId,
-        members: dto.members ?? booking.members,
+        members: finalMembers,
       },
       window,
     );
     await this.ensureNoConflict(bookingType, tableId, roomId, window, booking.id);
 
-    return this.bookingRepository.update(id, {
-      tableId,
-      roomId,
-      bookingDate: window.bookingDate,
-      startTime: window.startTime,
-      endTime: window.endTime,
-      startAt: window.startAt,
-      endAt: window.endAt,
-      members: dto.members,
-      notes: dto.notes,
-      status: dto.status,
+    // ─── Guest List Validation and Update ───────────────────────────────────
+    if (bookingType === BookingType.ROOM && dto.guests) {
+      if (dto.guests.length !== finalMembers) {
+        throw new ApiError(400, `Guest details count (${dto.guests.length}) must match guest count (${finalMembers}).`);
+      }
+    }
+
+    // ─── Discount / Offer Application ───────────────────────────────────────
+    let discountSource: DiscountSource = booking.discountSource;
+    let discountPercentage = Number(booking.discountPercentage);
+    let appliedOfferId: string | null = booking.appliedOfferId ?? null;
+
+    if (dto.appliedOfferId !== undefined || dto.useGameDiscount !== undefined) {
+      if (dto.appliedOfferId && dto.useGameDiscount) {
+        throw new ApiError(400, "Cannot apply both offer and game discount.");
+      }
+
+      if (dto.appliedOfferId === null) {
+        discountSource = DiscountSource.NONE;
+        discountPercentage = 0;
+        appliedOfferId = null;
+      } else if (dto.appliedOfferId) {
+        const offer = await prisma.offer.findUnique({
+          where: { id: dto.appliedOfferId, deletedAt: null },
+        });
+
+        if (!offer || offer.status !== "ACTIVE") {
+          throw new ApiError(400, "Selected offer is not active.");
+        }
+
+        if (bookingType === BookingType.ROOM && offer.applicableTo === "TABLE") {
+          throw new ApiError(400, "Offer only applicable to table bookings.");
+        }
+        if (bookingType === BookingType.TABLE && offer.applicableTo === "ROOM") {
+          throw new ApiError(400, "Offer only applicable to room bookings.");
+        }
+
+        discountSource = DiscountSource.OFFER;
+        discountPercentage = Number(offer.discountValue);
+        appliedOfferId = offer.id;
+      } else if (dto.useGameDiscount) {
+        const reward = await prisma.gameReward.findFirst({
+          where: {
+            customerId: booking.customerId,
+            status: RewardStatus.ACTIVE,
+            expiresAt: { gte: new Date() },
+            deletedAt: null,
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!reward) {
+          throw new ApiError(400, "No active game discount found.");
+        }
+
+        const value = Number(reward.discountValue);
+        if (value > 15) {
+          throw new ApiError(400, "Game discount exceeds maximum limit of 15%.");
+        }
+
+        discountSource = DiscountSource.GAME;
+        discountPercentage = value;
+        appliedOfferId = null;
+
+        await prisma.gameReward.update({
+          where: { id: reward.id },
+          data: {
+            bookingId: booking.id,
+            status: RewardStatus.USED,
+            usedAt: new Date(),
+          },
+        });
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // Re-link or create guests list if provided
+      if (bookingType === BookingType.ROOM && dto.guests) {
+        await tx.bookingGuest.deleteMany({
+          where: { bookingId: booking.id },
+        });
+
+        await tx.bookingGuest.createMany({
+          data: dto.guests.map((g) => ({
+            bookingId: booking.id,
+            fullName: g.fullName,
+            aadhaarNumber: g.aadhaarNumber,
+          })),
+        });
+      }
+
+      const updated = await tx.booking.update({
+        where: { id },
+        data: {
+          tableId,
+          roomId,
+          bookingDate: window.bookingDate,
+          startTime: window.startTime,
+          endTime: window.endTime,
+          startAt: window.startAt,
+          endAt: window.endAt,
+          members: finalMembers,
+          notes: dto.notes,
+          status: dto.status,
+          discountSource,
+          discountPercentage,
+          appliedOfferId,
+        },
+        include: {
+          customer: { select: { id: true, fullName: true, phoneNumber: true, email: true } },
+          table: { include: { floor: true } },
+          room: true,
+          appliedOffer: true,
+          guests: { where: { deletedAt: null } },
+        },
+      });
+
+      return updated;
     });
   }
 
@@ -249,38 +465,28 @@ export class BookingService extends BaseService {
       excludeBookingId,
     });
 
-    if (conflict.hasConflict) {
-      throw new ApiError(409, "Selected resource already has an overlapping booking", ERROR_CODES.RESOURCE_CONFLICT);
+    if (conflict) {
+      throw new ApiError(409, "Selected resource is already booked during this time", ERROR_CODES.RESOURCE_CONFLICT);
     }
   }
 
   private async generateBookingNumber() {
     const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const randomPart = Math.floor(100000 + Math.random() * 900000);
-      const bookingNumber = `BK-${datePart}-${randomPart}`;
-      const existingBooking = await this.bookingRepository.findByBookingNumber(bookingNumber);
-
-      if (!existingBooking) {
-        return bookingNumber;
-      }
+      const bookingNumber = `BK-${datePart}-${Math.floor(100000 + Math.random() * 900000)}`;
+      if (!(await this.bookingRepository.findByBookingNumber(bookingNumber))) return bookingNumber;
     }
-
     throw new ApiError(500, "Could not generate booking number");
   }
 
-  private markNoShows() {
-    return this.bookingRepository.markNoShows(new Date());
+  private async markNoShows() {
+    const now = new Date();
+    await this.bookingRepository.markNoShows(now);
   }
 }
 
-const bookingRepository = new BookingRepository();
-const conflictDetectionService = new ConflictDetectionService(bookingRepository);
-const availabilityService = new AvailabilityService(bookingRepository, conflictDetectionService);
-
 export const bookingService = new BookingService(
-  bookingRepository,
-  conflictDetectionService,
-  availabilityService,
+  new BookingRepository(),
+  new ConflictDetectionService(new BookingRepository()),
+  new AvailabilityService(new BookingRepository(), new ConflictDetectionService(new BookingRepository())),
 );

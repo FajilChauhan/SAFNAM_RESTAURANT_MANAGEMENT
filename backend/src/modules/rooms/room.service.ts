@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
@@ -6,6 +8,19 @@ import { ApiError } from "../../utils/ApiError.js";
 import { restaurantService } from "../restaurant/restaurant.service.js";
 import type { CreateRoomDto, UpdateRoomDto } from "./dto/room.dto.js";
 import { RoomRepository } from "./room.repository.js";
+
+function deletePhysicalFile(relativeUrl: string | null | undefined) {
+  try {
+    if (!relativeUrl || !relativeUrl.startsWith("/uploads/")) return;
+    const relativePath = relativeUrl.replace(/^\/uploads\//, "");
+    const absolutePath = path.resolve("uploads", relativePath);
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+    }
+  } catch (error) {
+    console.error("Failed to delete physical file:", error);
+  }
+}
 
 export class RoomService extends BaseService {
   constructor(private readonly roomRepository: RoomRepository) {
@@ -46,6 +61,11 @@ export class RoomService extends BaseService {
       }
     }
 
+    // If imageUrl changed, delete the old physical file
+    if (dto.imageUrl !== undefined && dto.imageUrl !== room.imageUrl) {
+      deletePhysicalFile(room.imageUrl);
+    }
+
     return this.roomRepository.update(id, {
       ...dto,
       pricePerDay: dto.pricePerDay === undefined ? undefined : new Prisma.Decimal(dto.pricePerDay),
@@ -53,9 +73,20 @@ export class RoomService extends BaseService {
   }
 
   async delete(id: string) {
-    const room = await this.roomRepository.findById(id);
-    this.ensureExists(room, "Room not found");
+    const maybeRoom = await this.roomRepository.findById(id);
+    const room = this.ensureExists(maybeRoom, "Room not found");
 
+    // Check for bookings before deletion
+    const bookingsCount = await this.roomRepository.countBookings(id);
+    if (bookingsCount > 0) {
+      throw new ApiError(
+        409,
+        "This room has booking history. Deactivate it instead of deleting.",
+        ERROR_CODES.RESOURCE_CONFLICT
+      );
+    }
+
+    deletePhysicalFile(room.imageUrl);
     await this.roomRepository.delete(id);
   }
 }

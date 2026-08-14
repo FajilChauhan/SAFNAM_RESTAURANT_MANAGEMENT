@@ -95,15 +95,17 @@ export class CheckoutRepository {
         },
       });
 
-      await tx.user.update({
-        where: { id: input.customerId },
-        data: {
-          visitCount: { increment: 1 },
-          totalSpending: { increment: input.invoiceTotal },
-          lastVisitAt: input.checkedOutAt,
-          updatedBy: input.checkedOutById,
-        },
-      });
+      if (input.invoiceTotal.gt(new Prisma.Decimal(0))) {
+        await tx.user.update({
+          where: { id: input.customerId },
+          data: {
+            visitCount: { increment: 1 },
+            totalSpending: { increment: input.invoiceTotal },
+            lastVisitAt: input.checkedOutAt,
+            updatedBy: input.checkedOutById,
+          },
+        });
+      }
 
       return tx.checkoutSession.findUniqueOrThrow({
         where: { id: checkout.id },

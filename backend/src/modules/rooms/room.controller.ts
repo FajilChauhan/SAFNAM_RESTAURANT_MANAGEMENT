@@ -6,11 +6,19 @@ import { uuidSchema } from "../../utils/validator.js";
 import { roomService } from "./room.service.js";
 import { createRoomSchema, updateRoomSchema } from "./validators/room.validator.js";
 
+const parseImageUrlField = (file?: Express.Multer.File, bodyImageUrl?: string | null) => {
+  const uploadedUrl = getUploadedFileUrl(file);
+  if (uploadedUrl) return uploadedUrl;
+  if (bodyImageUrl === "" || bodyImageUrl === "null" || bodyImageUrl === null) return null;
+  return bodyImageUrl;
+};
+
 class RoomController extends BaseController {
   create = asyncHandler(async (req, res) => {
+    const imageUrl = parseImageUrlField(req.file, req.body.imageUrl);
     const dto = createRoomSchema.parse({
       ...req.body,
-      imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+      imageUrl,
     });
     const room = await roomService.create(dto);
 
@@ -26,9 +34,10 @@ class RoomController extends BaseController {
 
   update = asyncHandler(async (req, res) => {
     const id = uuidSchema.parse(req.params.id);
+    const imageUrl = parseImageUrlField(req.file, req.body.imageUrl);
     const dto = updateRoomSchema.parse({
       ...req.body,
-      imageUrl: getUploadedFileUrl(req.file) ?? req.body.imageUrl,
+      imageUrl,
     });
     const room = await roomService.update(id, dto);
 

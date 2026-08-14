@@ -7,7 +7,7 @@ export type CreateRoomDto = {
   capacity: number;
   pricePerDay: Prisma.Decimal | number | string;
   description?: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   status?: RoomStatus;
 };
 

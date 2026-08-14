@@ -57,4 +57,8 @@ export class RoomRepository {
   delete(id: string) {
     return prisma.room.delete({ where: { id } });
   }
+
+  countBookings(roomId: string) {
+    return prisma.booking.count({ where: { roomId } });
+  }
 }

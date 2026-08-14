@@ -314,8 +314,8 @@ export class DashboardRepository {
     return this.first(
       await prisma.$queryRaw<DashboardRawRow[]>`
         SELECT
-          COALESCE((SELECT SUM(p.amount - p."refundedAmount") FROM payments p WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND p."paidAt" >= CURRENT_DATE AND p."paidAt" < CURRENT_DATE + INTERVAL '1 day'), 0) AS "todaysRevenue",
-          COALESCE((SELECT SUM(p.amount - p."refundedAmount") FROM payments p WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND date_trunc('month', p."paidAt") = date_trunc('month', NOW())), 0) AS "monthlyRevenue",
+          COALESCE((SELECT SUM(cs."invoiceTotal") FROM checkout_sessions cs WHERE cs."deletedAt" IS NULL AND cs."checkedOutAt" >= CURRENT_DATE AND cs."checkedOutAt" < CURRENT_DATE + INTERVAL '1 day'), 0) AS "todaysRevenue",
+          COALESCE((SELECT SUM(cs."invoiceTotal") FROM checkout_sessions cs WHERE cs."deletedAt" IS NULL AND date_trunc('month', cs."checkedOutAt") = date_trunc('month', NOW())), 0) AS "monthlyRevenue",
           (SELECT COUNT(*) FROM orders o WHERE o."deletedAt" IS NULL AND o."confirmedAt" >= CURRENT_DATE AND o."confirmedAt" < CURRENT_DATE + INTERVAL '1 day') AS "todaysOrders",
           (SELECT COUNT(*) FROM bookings b WHERE b."deletedAt" IS NULL AND b."bookingDate" = CURRENT_DATE) AS "todaysBookings",
           (SELECT COUNT(DISTINCT b."customerId") FROM bookings b WHERE b."deletedAt" IS NULL AND b."bookingDate" = CURRENT_DATE) AS "todaysCustomers",
@@ -393,14 +393,14 @@ export class DashboardRepository {
            ) status_counts), '[]'::jsonb) AS "orderBreakdown",
           COALESCE((SELECT ROUND(((today.revenue - yesterday.revenue) / NULLIF(yesterday.revenue, 0)) * 100, 2)
            FROM (
-             SELECT COALESCE(SUM(p.amount - p."refundedAmount"), 0) AS revenue
-             FROM payments p
-             WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND p."paidAt" >= CURRENT_DATE AND p."paidAt" < CURRENT_DATE + INTERVAL '1 day'
+             SELECT COALESCE(SUM(cs."invoiceTotal"), 0) AS revenue
+             FROM checkout_sessions cs
+             WHERE cs."deletedAt" IS NULL AND cs."checkedOutAt" >= CURRENT_DATE AND cs."checkedOutAt" < CURRENT_DATE + INTERVAL '1 day'
            ) today,
            (
-             SELECT COALESCE(SUM(p.amount - p."refundedAmount"), 0) AS revenue
-             FROM payments p
-             WHERE p."deletedAt" IS NULL AND p.status IN ('SUCCESS', 'PARTIALLY_REFUNDED') AND p."paidAt" >= CURRENT_DATE - INTERVAL '1 day' AND p."paidAt" < CURRENT_DATE
+             SELECT COALESCE(SUM(cs."invoiceTotal"), 0) AS revenue
+             FROM checkout_sessions cs
+             WHERE cs."deletedAt" IS NULL AND cs."checkedOutAt" >= CURRENT_DATE - INTERVAL '1 day' AND cs."checkedOutAt" < CURRENT_DATE
            ) yesterday), 0) AS "revenueChange",
           COALESCE((SELECT ROUND(((today.count - yesterday.count)::numeric / NULLIF(yesterday.count, 0)) * 100, 2)
            FROM (

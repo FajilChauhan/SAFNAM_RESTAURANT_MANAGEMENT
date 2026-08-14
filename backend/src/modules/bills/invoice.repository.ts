@@ -9,6 +9,7 @@ export class InvoiceRepository {
         room: true,
         orders: { where: { status: "SERVED", deletedAt: null }, include: { items: true } },
         invoice: { include: { items: { where: { deletedAt: null } } } },
+        appliedOffer: true,
       },
     });
   }

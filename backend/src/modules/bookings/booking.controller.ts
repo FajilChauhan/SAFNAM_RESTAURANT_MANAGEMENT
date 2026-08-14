@@ -1,3 +1,4 @@
+import { prisma } from "../../database/prisma.js";
 import { BaseController } from "../../lib/BaseController.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { parseApiQuery } from "../../utils/queryParser.js";
@@ -49,6 +50,14 @@ class BookingController extends BaseController {
   get = asyncHandler(async (req, res) => {
     const id = uuidSchema.parse(req.params.id);
     const booking = await bookingService.getById(id);
+    
+    // Mask Aadhaar if customer
+    if (req.user?.role === "CUSTOMER" && booking.guests) {
+      booking.guests = booking.guests.map((g) => ({
+        ...g,
+        aadhaarNumber: `XXXX-XXXX-${g.aadhaarNumber.slice(-4)}`,
+      }));
+    }
 
     this.ok(res, "Booking fetched successfully", { booking });
   });
@@ -63,6 +72,17 @@ class BookingController extends BaseController {
       "roomId",
     ]);
     const result = await bookingService.list(options);
+
+    // Mask Aadhaar for everyone in lists/grids
+    result.data = result.data.map((b: any) => {
+      if (b.guests) {
+        b.guests = b.guests.map((g: any) => ({
+          ...g,
+          aadhaarNumber: `XXXX-XXXX-${g.aadhaarNumber.slice(-4)}`,
+        }));
+      }
+      return b;
+    });
 
     this.ok(res, "Bookings fetched successfully", { bookings: result.data }, result.meta);
   });
@@ -79,6 +99,20 @@ class BookingController extends BaseController {
     const rooms = await bookingService.getAvailableRooms(dto);
 
     this.ok(res, "Available rooms fetched successfully", { rooms });
+  });
+
+  activeReward = asyncHandler(async (req, res) => {
+    const customerId = uuidSchema.parse(req.params.customerId);
+    const reward = await prisma.gameReward.findFirst({
+      where: {
+        customerId,
+        status: "ACTIVE",
+        expiresAt: { gte: new Date() },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    this.ok(res, "Active reward fetched successfully", { reward });
   });
 }
 
