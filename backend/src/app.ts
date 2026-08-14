@@ -17,7 +17,11 @@ import { router } from "./routes/index.js";
 export const createApp = () => {
   const app = express();
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+    }),
+  );
   app.use(cors(corsOptions));
   app.use(compression());
   app.use(cookieParser());

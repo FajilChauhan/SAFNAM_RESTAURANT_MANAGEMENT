@@ -60,4 +60,8 @@ export class TableRepository {
   delete(id: string) {
     return prisma.diningTable.delete({ where: { id } });
   }
+
+  countBookings(tableId: string) {
+    return prisma.booking.count({ where: { tableId } });
+  }
 }

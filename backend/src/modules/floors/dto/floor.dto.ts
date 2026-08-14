@@ -5,6 +5,7 @@ export type CreateFloorDto = {
   name: string;
   displayOrder?: number;
   description?: string;
+  imageUrl?: string | null;
   status?: FloorStatus;
 };
 

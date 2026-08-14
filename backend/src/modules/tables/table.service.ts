@@ -46,6 +46,11 @@ export class TableService extends BaseService {
     const table = await this.tableRepository.findById(id);
     this.ensureExists(table, "Table not found");
 
+    const bookingsCount = await this.tableRepository.countBookings(id);
+    if (bookingsCount > 0) {
+      throw new ApiError(409, "This table contains bookings. Deactivate the table instead of deleting it.", ERROR_CODES.RESOURCE_CONFLICT);
+    }
+
     await this.tableRepository.delete(id);
   }
 }

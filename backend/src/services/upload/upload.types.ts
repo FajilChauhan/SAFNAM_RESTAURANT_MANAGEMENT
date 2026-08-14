@@ -1,6 +1,6 @@
 export type UploadDestination = "memory" | "local";
 export type StorageProvider = "local" | "cloudinary" | "s3" | "r2";
-export type UploadModule = "menu/category" | "menu/item" | "restaurant" | "profile" | "gallery" | "offers";
+export type UploadModule = "menu/category" | "menu/item" | "restaurant" | "profile" | "gallery" | "offers" | "floors";
 
 export type UploadConfig = {
   destination: UploadDestination;

@@ -10,11 +10,11 @@ const FLOOR_SEARCH_FIELDS = ["name", "description"];
 
 export class FloorRepository {
   create(data: Prisma.FloorUncheckedCreateInput) {
-    return prisma.floor.create({ data });
+    return prisma.floor.create({ data, include: { _count: { select: { tables: true } } } });
   }
 
   findById(id: string) {
-    return prisma.floor.findUnique({ where: { id } });
+    return prisma.floor.findUnique({ where: { id }, include: { _count: { select: { tables: true } } } });
   }
 
   findByRestaurantAndName(restaurantId: string, name: string) {
@@ -25,6 +25,7 @@ export class FloorRepository {
           name,
         },
       },
+      include: { _count: { select: { tables: true } } },
     });
   }
 
@@ -44,6 +45,11 @@ export class FloorRepository {
         skip: options.skip,
         take: options.limit,
         orderBy,
+        include: {
+          _count: {
+            select: { tables: true },
+          },
+        },
       }),
       prisma.floor.count({ where }),
     ]);
@@ -58,10 +64,15 @@ export class FloorRepository {
     return prisma.floor.update({
       where: { id },
       data,
+      include: { _count: { select: { tables: true } } },
     });
   }
 
   delete(id: string) {
     return prisma.floor.delete({ where: { id } });
+  }
+
+  countTables(floorId: string) {
+    return prisma.diningTable.count({ where: { floorId } });
   }
 }
