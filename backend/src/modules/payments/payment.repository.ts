@@ -70,6 +70,35 @@ export class PaymentRepository {
         },
       });
 
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
+        select: {
+          grandTotal: true,
+          bookingId: true,
+          status: true,
+          booking: { select: { customerId: true } },
+        },
+      });
+
+      if (invoice && invoice.status === "PAID" && invoice.grandTotal.gt(0)) {
+        const existingCheckout = await tx.checkoutSession.findFirst({
+          where: { bookingId: invoice.bookingId, deletedAt: null },
+          select: { id: true },
+        });
+
+        if (!existingCheckout) {
+          await tx.user.update({
+            where: { id: invoice.booking.customerId },
+            data: {
+              visitCount: { increment: 1 },
+              totalSpending: { increment: invoice.grandTotal },
+              lastVisitAt: new Date(),
+              updatedBy: input.receivedById,
+            },
+          });
+        }
+      }
+
       return payment;
     });
   }
