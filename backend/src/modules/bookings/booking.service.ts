@@ -26,7 +26,13 @@ export class BookingService extends BaseService {
 
   async create(dto: CreateBookingDto, actor: AuthenticatedUser) {
     const customerId = this.resolveCustomerId(dto.customerId, actor);
-    const window = createTimeWindow(dto);
+    const window = createTimeWindow({
+      date: dto.date,
+      endDate: dto.endDate,     // check-out date for room bookings
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      durationMinutes: dto.durationMinutes,
+    });
 
     await this.validateResource(dto, window);
     await this.ensureNoConflict(dto.bookingType, dto.tableId, dto.roomId, window);
@@ -465,7 +471,7 @@ export class BookingService extends BaseService {
       excludeBookingId,
     });
 
-    if (conflict) {
+    if (conflict.hasConflict) {
       throw new ApiError(409, "Selected resource is already booked during this time", ERROR_CODES.RESOURCE_CONFLICT);
     }
   }

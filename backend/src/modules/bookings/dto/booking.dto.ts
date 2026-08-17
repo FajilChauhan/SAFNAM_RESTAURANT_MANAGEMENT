@@ -11,6 +11,7 @@ export type CreateBookingDto = {
   tableId?: string;
   roomId?: string;
   date: string;
+  endDate?: string;     // for room bookings: check-out date
   startTime: string;
   endTime?: string;
   durationMinutes?: number;
@@ -32,6 +33,7 @@ export type UpdateBookingDto = Partial<
 export type AvailabilityQueryDto = {
   restaurantId?: string;
   date: string;
+  endDate?: string;
   startTime: string;
   endTime?: string;
   durationMinutes?: number;

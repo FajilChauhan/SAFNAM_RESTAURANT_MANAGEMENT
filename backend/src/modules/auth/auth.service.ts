@@ -133,7 +133,7 @@ export class AuthService implements IAuthService {
     metadata: RequestMetadata,
   ): Promise<TokenPair> {
     const accessToken = signJwt({ sub: userId, role, type: "access" });
-    const refreshToken = signJwt({ sub: userId, role, type: "refresh" });
+    const refreshToken = signJwt({ sub: userId, role, type: "refresh", jti: crypto.randomUUID() });
 
     await this.authRepository.createRefreshToken({
       userId,

@@ -71,12 +71,19 @@ export class BookingRepository {
     endAt: Date;
     excludeBookingId?: string;
   }) {
+    const hasResource = Boolean(input.roomId || input.tableId);
+    if (!hasResource) {
+      return null;
+    }
+
+    const resourceFilter: Prisma.BookingWhereInput = input.roomId
+      ? { roomId: input.roomId }
+      : { tableId: input.tableId };
+
     return prisma.booking.findFirst({
       where: {
+        ...resourceFilter,
         id: input.excludeBookingId ? { not: input.excludeBookingId } : undefined,
-        bookingType: input.bookingType,
-        tableId: input.tableId,
-        roomId: input.roomId,
         status: { in: CONFLICT_STATUSES },
         startAt: { lt: input.endAt },
         endAt: { gt: input.startAt },

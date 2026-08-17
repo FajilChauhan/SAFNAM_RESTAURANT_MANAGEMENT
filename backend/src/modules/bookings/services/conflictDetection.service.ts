@@ -12,6 +12,10 @@ export class ConflictDetectionService {
     endAt: Date;
     excludeBookingId?: string;
   }) {
+    if (!input.roomId && !input.tableId) {
+      return { hasConflict: false, conflictingBooking: null };
+    }
+
     const overlappingBooking = await this.bookingRepository.findOverlappingBooking(input);
 
     return {

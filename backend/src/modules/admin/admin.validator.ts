@@ -1,4 +1,4 @@
-import { DiscountType, MenuEntityStatus, OfferType, UserRole, UserStatus } from "@prisma/client";
+import { DiscountType, MenuEntityStatus, OfferApplicableTo, OfferType, UserRole, UserStatus } from "@prisma/client";
 import { z } from "zod";
 
 const staffRoles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN] as const;
@@ -37,6 +37,7 @@ export const offerListQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   type: z.nativeEnum(OfferType).optional(),
   status: z.nativeEnum(MenuEntityStatus).optional(),
+  applicableTo: z.nativeEnum(OfferApplicableTo).optional(),
 });
 
 const offerBaseSchema = z.object({
@@ -44,6 +45,7 @@ const offerBaseSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   code: z.string().trim().min(2).max(40).optional(),
   type: z.nativeEnum(OfferType),
+  applicableTo: z.nativeEnum(OfferApplicableTo).default(OfferApplicableTo.BOTH),
   discountType: z.nativeEnum(DiscountType),
   discountValue: z.coerce.number().positive(),
   minSpend: z.coerce.number().min(0).default(0),

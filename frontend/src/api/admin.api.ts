@@ -37,6 +37,7 @@ export type AdminOffer = {
   description?: string | null;
   code?: string | null;
   type: "TODAY" | "COUPON" | "BIRTHDAY" | "FESTIVAL";
+  applicableTo: "TABLE" | "ROOM" | "BOTH";
   discountType: "PERCENTAGE" | "FIXED";
   discountValue: string | number;
   minSpend: string | number;
@@ -56,6 +57,7 @@ export type PaginatedParams = {
   role?: UserRole;
   status?: string;
   type?: string;
+  applicableTo?: "TABLE" | "ROOM" | "BOTH";
 };
 
 export type ApiEnvelope<T> = {

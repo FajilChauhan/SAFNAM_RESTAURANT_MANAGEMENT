@@ -1,4 +1,4 @@
-import { MenuEntityStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
+import { MenuEntityStatus, OfferApplicableTo, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
 import type { OperationPermission } from "../operations/constants/operationPermissions.js";
 import type {
@@ -43,6 +43,7 @@ const offerSelect = {
   description: true,
   code: true,
   type: true,
+  applicableTo: true,
   discountType: true,
   discountValue: true,
   minSpend: true,
@@ -187,6 +188,7 @@ export class AdminRepository {
       deletedAt: null,
       type: query.type,
       status: query.status,
+      applicableTo: query.applicableTo,
       OR: query.search
         ? [
             { title: { contains: query.search, mode: "insensitive" } },
@@ -384,6 +386,7 @@ export class AdminRepository {
   private createOfferData(data: CreateOfferDto & { createdBy?: string }): Prisma.OfferUncheckedCreateInput {
     return {
       ...data,
+      applicableTo: data.applicableTo ?? OfferApplicableTo.BOTH,
       discountValue: new Prisma.Decimal(data.discountValue),
       minSpend: new Prisma.Decimal(data.minSpend),
       maxDiscount: data.maxDiscount === undefined ? undefined : new Prisma.Decimal(data.maxDiscount),

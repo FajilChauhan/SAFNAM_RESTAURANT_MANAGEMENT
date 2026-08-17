@@ -17,6 +17,7 @@ export const createBookingSchema = z
     tableId: z.string().uuid().optional(),
     roomId: z.string().uuid().optional(),
     date: dateSchema,
+    endDate: dateSchema.optional(),    // check-out date for multi-day room bookings
     startTime: timeSchema,
     endTime: timeSchema.optional(),
     durationMinutes: durationSchema,
@@ -27,8 +28,8 @@ export const createBookingSchema = z
     useGameDiscount: z.boolean().optional(),
     guests: z.array(guestSchema).optional(),
   })
-  .refine((data) => Boolean(data.endTime) || Boolean(data.durationMinutes), {
-    message: "Either endTime or durationMinutes is required",
+  .refine((data) => Boolean(data.endTime) || Boolean(data.durationMinutes) || data.bookingType === BookingType.ROOM, {
+    message: "Either endTime or durationMinutes is required for table bookings",
     path: ["endTime"],
   })
   .refine((data) => data.bookingType !== BookingType.TABLE || Boolean(data.tableId), {
@@ -38,6 +39,10 @@ export const createBookingSchema = z
   .refine((data) => data.bookingType !== BookingType.ROOM || Boolean(data.roomId), {
     message: "roomId is required for room bookings",
     path: ["roomId"],
+  })
+  .refine((data) => data.bookingType !== BookingType.ROOM || Boolean(data.endDate), {
+    message: "endDate (check-out date) is required for room bookings",
+    path: ["endDate"],
   })
   .refine((data) => !(data.appliedOfferId && data.useGameDiscount), {
     message: "Cannot apply both offer and game discount",

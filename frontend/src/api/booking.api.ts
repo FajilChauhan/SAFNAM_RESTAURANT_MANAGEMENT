@@ -1,4 +1,5 @@
 import api from "./axios";
+import { type AdminOffer } from "./admin.api";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingType = "TABLE" | "ROOM";
@@ -101,6 +102,12 @@ export type BookingOrder = {
 };
 
 // ─── Booking record ────────────────────────────────────────────────────────────
+export type BookingGuest = {
+  id?: string;
+  fullName: string;
+  aadhaarNumber: string;
+};
+
 export type Booking = {
   id: string;
   bookingNumber: string;
@@ -125,6 +132,12 @@ export type Booking = {
   room?: BookingRoom | null;
   invoice?: BookingInvoice | null;
   orders?: BookingOrder[];
+  guests?: BookingGuest[];
+  discountSource?: "NONE" | "OFFER" | "GAME";
+  discountPercentage?: string | number;
+  discountAmount?: string | number;
+  appliedOfferId?: string | null;
+  appliedOffer?: AdminOffer | null;
 };
 
 // ─── Availability ─────────────────────────────────────────────────────────────
@@ -155,12 +168,16 @@ export type CreateBookingPayload = {
   tableId?: string;
   roomId?: string;
   date: string;
+  endDate?: string;    // check-out date for room bookings
   startTime: string;
   endTime?: string;
   durationMinutes?: number;
   members: number;
   notes?: string;
   source: BookingSource;
+  appliedOfferId?: string;
+  useGameDiscount?: boolean;
+  guests?: BookingGuest[];
 };
 
 export type UpdateBookingPayload = {
@@ -173,6 +190,9 @@ export type UpdateBookingPayload = {
   members?: number;
   notes?: string;
   status?: BookingStatus;
+  appliedOfferId?: string | null;
+  useGameDiscount?: boolean;
+  guests?: BookingGuest[];
 };
 
 export type BookingListParams = {

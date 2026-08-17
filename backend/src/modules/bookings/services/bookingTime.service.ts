@@ -17,35 +17,46 @@ const fromMinutes = (minutes: number) => {
 
 export const createTimeWindow = (input: {
   date: string;
+  endDate?: string;     // check-out date for room bookings
   startTime: string;
   endTime?: string;
   durationMinutes?: number;
 }): TimeWindow => {
   const duration = input.durationMinutes ?? DEFAULT_DURATION_MINUTES;
   const endTime = input.endTime ?? fromMinutes(toMinutes(input.startTime) + duration);
+
+  // For room bookings: endDate is the check-out calendar date; for table bookings endDate === date.
+  const endDateStr = input.endDate ?? input.date;
+
   const startAt = new Date(`${input.date}T${input.startTime}:00.000Z`);
-  const endAt = new Date(`${input.date}T${endTime}:00.000Z`);
+  const endAt = new Date(`${endDateStr}T${endTime}:00.000Z`);
 
   if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
     throw new ApiError(400, "Invalid booking date or time");
   }
 
   if (endAt <= startAt) {
-    throw new ApiError(400, "End time must be after start time");
+    throw new ApiError(400, "End date/time must be after start date/time");
   }
 
-  if (startAt <= new Date()) {
-    throw new ApiError(400, "Booking cannot be created for a past time");
+  // Only block bookings that are clearly in the past (booking date < today).
+  // We use the calendar date comparison so that same-day bookings are always allowed.
+  const todayUTC = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
+  const bookingDayUTC = new Date(`${input.date}T00:00:00.000Z`);
+
+  if (bookingDayUTC < todayUTC) {
+    throw new ApiError(400, "Booking cannot be created for a past date");
   }
 
   return {
-    bookingDate: new Date(`${input.date}T00:00:00.000Z`),
+    bookingDate: bookingDayUTC,
     startTime: input.startTime,
     endTime,
     startAt,
     endAt,
   };
 };
+
 
 export const isWithinBusinessHours = (window: TimeWindow, openingTime: string, closingTime: string) => {
   const start = toMinutes(window.startTime);
