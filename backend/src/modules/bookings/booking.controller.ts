@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { prisma } from "../../database/prisma.js";
 import { BaseController } from "../../lib/BaseController.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
@@ -113,6 +114,22 @@ class BookingController extends BaseController {
       orderBy: { createdAt: "desc" },
     });
     this.ok(res, "Active reward fetched successfully", { reward });
+  });
+
+  eligibleOffers = asyncHandler(async (req, res) => {
+    const { bookingType, tableId, roomId } = z.object({
+      bookingType: z.enum(["TABLE", "ROOM"]),
+      tableId: z.string().uuid().optional(),
+      roomId: z.string().uuid().optional(),
+    }).parse(req.query);
+
+    const offers = await bookingService.getEligibleOffers({
+      bookingType,
+      tableId,
+      roomId,
+    });
+
+    this.ok(res, "Eligible offers fetched successfully", { offers });
   });
 }
 

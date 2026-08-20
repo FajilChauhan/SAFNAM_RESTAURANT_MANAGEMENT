@@ -11,12 +11,15 @@ interface AuthState {
   isAuthenticated: boolean
   setAuth: (user: User, accessToken: string) => void
   setUser: (user: User) => void
+  hasPermission: (permission: string) => boolean
+  hasAnyPermission: (permissions: string[]) => boolean
+  hasAllPermissions: (permissions: string[]) => boolean
   logout: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -31,6 +34,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setUser: (user) => set({ user }),
+
+      hasPermission: (permission: string): boolean =>
+        get().user?.permissions?.includes(permission) ?? false,
+
+      hasAnyPermission: (permissions: string[]): boolean =>
+        permissions.some((permission) => get().user?.permissions?.includes(permission)),
+
+      hasAllPermissions: (permissions: string[]): boolean =>
+        permissions.every((permission) => get().user?.permissions?.includes(permission)),
 
       logout: () => {
         localStorage.removeItem('accessToken')

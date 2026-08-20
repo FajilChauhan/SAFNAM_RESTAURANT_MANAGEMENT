@@ -6,6 +6,7 @@ import { BedDouble, CalendarDays, ChefHat, Clock3, Image, MapPin, MessageSquare,
 import { customerApi } from "@/api/customer.api";
 import { CustomerLayout } from "@/layouts/CustomerLayout";
 import { useAuthStore } from "@/store/authStore";
+import { useRestaurantSettings, resolveImageUrl } from "@/hooks/useRestaurantSettings";
 
 type RestaurantInfo = {
   name?: string;
@@ -61,6 +62,8 @@ const heroImage = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?
 export default function CustomerHomePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const { settings } = useRestaurantSettings();
+  const logoUrl = resolveImageUrl(settings.logoUrl);
 
   const homeQuery = useQuery<HomePayload>({
     queryKey: ["customer-home"],
@@ -73,7 +76,6 @@ export default function CustomerHomePage() {
   });
 
   const home = homeQuery.data;
-  const restaurant = home?.aboutRestaurant ?? home?.heroBanner ?? home?.contact;
   const specials = home?.todaysSpecials ?? [];
   const offers = home?.todaysOffers ?? [];
   const gallery = home?.gallery ?? [];
@@ -104,13 +106,13 @@ export default function CustomerHomePage() {
         <div className="absolute inset-0 bg-black/55" />
         <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col items-center justify-center px-4 py-20 text-center">
           <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-full bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-100">
-            Welcome to SAFNAM Restaurant
+            Welcome to {settings.name}
           </motion.p>
           <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="mt-6 text-5xl font-bold leading-tight text-white md:text-7xl">
-            SAFNAM Restaurant
+            {settings.name}
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="mt-6 max-w-2xl text-lg leading-8 text-gray-100">
-            {restaurant?.description ?? "A premium dining experience built around warm hospitality, fresh flavours, and memorable moments."}
+            {settings.description ?? "A premium dining experience built around warm hospitality, fresh flavours, and memorable moments."}
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="mt-10 flex flex-wrap justify-center gap-4">
             <button type="button" onClick={() => protectedNavigate("/customer/book-table")} className="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-7 py-4 font-semibold text-white shadow-lg shadow-amber-500/30 hover:bg-amber-600">
@@ -130,7 +132,7 @@ export default function CustomerHomePage() {
       </section>
 
       <main className="bg-gray-50 text-gray-900">
-        <Section eyebrow="Today's Special" title="Fresh from the SAFNAM kitchen">
+        <Section eyebrow="Today's Special" title="Fresh from the kitchen">
           {specials.length ? (
             <div className="grid gap-6 md:grid-cols-3">
               {specials.slice(0, 6).map((item) => <FoodCard key={item.id} item={item} special />)}
@@ -158,20 +160,20 @@ export default function CustomerHomePage() {
           </div>
         </Section>
 
-        <Section eyebrow="About SAFNAM" title="A restaurant made for memorable dining">
+        <Section eyebrow={`About ${settings.name}`} title="A restaurant made for memorable dining">
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
               <p className="leading-7 text-gray-600">
-                {restaurant?.description ?? "SAFNAM Restaurant brings together thoughtful service, comfortable dining, and carefully prepared food for guests who want a relaxed premium experience."}
+                {settings.description ?? "A restaurant that brings together thoughtful service, comfortable dining, and carefully prepared food for guests who want a relaxed premium experience."}
               </p>
               <button type="button" onClick={() => protectedNavigate("/customer/book-table")} className="mt-6 rounded-xl bg-emerald-700 px-5 py-3 font-semibold text-white hover:bg-emerald-800">
                 Reserve Your Table
               </button>
             </div>
             <div className="grid gap-3">
-              <Info icon={<MapPin className="h-5 w-5" />} label={restaurant?.address ?? "Address will be updated soon"} />
-              <Info icon={<Phone className="h-5 w-5" />} label={restaurant?.phone ?? "Phone will be updated soon"} />
-              <Info icon={<Clock3 className="h-5 w-5" />} label={`${restaurant?.openingTime ?? "--:--"} - ${restaurant?.closingTime ?? "--:--"}`} />
+              <Info icon={<MapPin className="h-5 w-5" />} label={settings.address || "Address will be updated soon"} />
+              <Info icon={<Phone className="h-5 w-5" />} label={settings.phone || "Phone will be updated soon"} />
+              <Info icon={<Clock3 className="h-5 w-5" />} label={`${settings.openingTime} - ${settings.closingTime}`} />
             </div>
           </div>
         </Section>
@@ -183,19 +185,19 @@ export default function CustomerHomePage() {
                 <div key={chef.id ?? chef.name} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                   {chef.imageUrl ? <img src={chef.imageUrl} alt={chef.name} className="h-48 w-full rounded-xl object-cover" /> : null}
                   <h3 className="mt-4 font-bold text-gray-900">{chef.name}</h3>
-                  <p className="text-sm text-gray-500">{chef.designation ?? "SAFNAM culinary team"}</p>
+                  <p className="text-sm text-gray-500">{chef.designation ?? "Culinary team"}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState icon={<ChefHat className="h-8 w-8" />} title="Chef profiles coming soon" description="SAFNAM has not published chef profile data yet." />
+            <EmptyState icon={<ChefHat className="h-8 w-8" />} title="Chef profiles coming soon" description="Chef profile data has not been published yet." />
           )}
         </Section>
 
-        <Section eyebrow="Gallery" title="A glimpse of SAFNAM">
+        <Section eyebrow="Gallery" title="A glimpse of our restaurant">
           {gallery.length ? (
             <div className="grid auto-rows-[180px] grid-cols-2 gap-3 md:grid-cols-4">
-              {gallery.map((image) => <img key={image} src={image} alt="SAFNAM gallery" className="h-full w-full rounded-2xl object-cover" />)}
+              {gallery.map((image) => <img key={image} src={image} alt="Restaurant gallery" className="h-full w-full rounded-2xl object-cover" />)}
             </div>
           ) : (
             <EmptyState icon={<Image className="h-8 w-8" />} title="Gallery coming soon" description="Restaurant, food and interior photos will appear here when gallery data is available." />
@@ -203,10 +205,10 @@ export default function CustomerHomePage() {
         </Section>
 
         <Section eyebrow="Customer Reviews" title="What Our Customers Say">
-          <EmptyState icon={<MessageSquare className="h-8 w-8" />} title="Be the first to share your SAFNAM experience" description="A public reviews API is not available yet, so no guest reviews are displayed." />
+          <EmptyState icon={<MessageSquare className="h-8 w-8" />} title="Be the first to share your experience" description="A public reviews API is not available yet, so no guest reviews are displayed." />
         </Section>
 
-        <Section eyebrow="Leaderboard" title="Top SAFNAM guests">
+        <Section eyebrow="Leaderboard" title="Top guests">
           {home?.bestCustomers?.length ? (
             <div className="grid gap-4 md:grid-cols-3">
               {home.bestCustomers.slice(0, 3).map((customer, index) => (
@@ -218,24 +220,24 @@ export default function CustomerHomePage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Leaderboard is waiting for visits" description="Top customers will appear here after real SAFNAM visits are recorded." />
+            <EmptyState title="Leaderboard is waiting for visits" description="Top customers will appear here after real visits are recorded." />
           )}
         </Section>
 
-        <Section eyebrow="Offers" title="Current SAFNAM offers">
+        <Section eyebrow="Offers" title="Current offers">
           {offers.length ? (
             <div className="grid gap-6 md:grid-cols-3">
               {offers.map((offer) => (
                 <div key={offer.id} className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm">
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Offer</span>
                   <h3 className="mt-4 text-xl font-bold text-gray-900">{offer.title}</h3>
-                  <p className="mt-2 text-sm text-gray-600">{offer.description ?? "Special SAFNAM offer."}</p>
+                  <p className="mt-2 text-sm text-gray-600">{offer.description ?? "Special offer."}</p>
                   <p className="mt-4 text-sm font-semibold text-emerald-700">{offer.code ? `Code: ${offer.code}` : formatDiscount(offer)}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState title="No active offers today" description="Available SAFNAM offers will appear here." />
+            <EmptyState title="No active offers today" description="Available offers will appear here." />
           )}
         </Section>
       </main>
@@ -243,22 +245,31 @@ export default function CustomerHomePage() {
       <footer className="bg-gray-950 py-12 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 md:grid-cols-4">
           <div>
-            <h2 className="text-2xl font-bold text-amber-400">SAFNAM Restaurant</h2>
-            <p className="mt-2 text-sm text-gray-400">Premium dining, warm hospitality, real SAFNAM experiences.</p>
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <img src={logoUrl} alt={settings.name} className="h-10 w-10 rounded-xl object-cover" />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500">
+                  <UtensilsCrossed className="h-5 w-5 text-white" />
+                </div>
+              )}
+              <h2 className="text-xl font-bold text-amber-400">{settings.name}</h2>
+            </div>
+            <p className="mt-2 text-sm text-gray-400">{settings.description ?? "Premium dining, warm hospitality, memorable experiences."}</p>
           </div>
           <FooterLinks title="Explore" items={["About", "Menu", "Offers", "Gallery"]} />
           <FooterLinks title="Reserve" items={["Book Table", "Book Room", "Complaint / Suggestion"]} />
           <div>
             <h3 className="font-semibold">Contact</h3>
             <div className="mt-3 space-y-2 text-sm text-gray-400">
-              <p>{restaurant?.address ?? "Address coming soon"}</p>
-              <p>{restaurant?.phone ?? "Phone coming soon"}</p>
-              <p>{restaurant?.email ?? "Email coming soon"}</p>
+              <p>{settings.address || "Address coming soon"}</p>
+              <p>{settings.phone || "Phone coming soon"}</p>
+              {settings.email ? <p>{settings.email}</p> : null}
             </div>
           </div>
         </div>
         <div className="mx-auto mt-10 max-w-7xl border-t border-white/10 px-4 pt-6 text-sm text-gray-500">
-          Copyright {new Date().getFullYear()} SAFNAM Restaurant. All rights reserved.
+          Copyright {new Date().getFullYear()} {settings.name}. All rights reserved.
         </div>
       </footer>
     </CustomerLayout>
@@ -334,6 +345,6 @@ function formatPrice(value?: string | number) {
 }
 
 function formatDiscount(offer: Offer) {
-  if (!offer.discountValue) return "Offer details available at SAFNAM";
+  if (!offer.discountValue) return "Offer details available";
   return `${offer.discountValue}${offer.discountType === "PERCENTAGE" ? "%" : "₹"} off`;
 }

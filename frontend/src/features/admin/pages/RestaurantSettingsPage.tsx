@@ -1,13 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Camera, Clock, Globe, Mail, MapPin, Phone, Save, Trash2, Upload, X } from "lucide-react";
 import { restaurantApi } from "@/api/restaurant.api";
-import { Button, EmptyState, Input, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { getErrorMessage } from "@/utils/formatters";
+import { resolveImageUrl } from "@/hooks/useRestaurantSettings";
+import { cn } from "@/utils/cn";
 
 type RestaurantForm = {
   name: string;
   logoUrl: string;
   logoFile: File | null;
+  previewUrl: string | null;
   description: string;
   phone: string;
   email: string;
@@ -23,6 +27,7 @@ const emptyForm: RestaurantForm = {
   name: "",
   logoUrl: "",
   logoFile: null,
+  previewUrl: null,
   description: "",
   phone: "",
   email: "",
@@ -37,28 +42,31 @@ const emptyForm: RestaurantForm = {
 export default function RestaurantSettingsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<RestaurantForm>(emptyForm);
-  const [message, setMessage] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const restaurantQuery = useQuery({
     queryKey: ["restaurant"],
-    queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant as RestaurantForm & { id: string },
+    queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant as Record<string, string | null>,
   });
 
   useEffect(() => {
     if (!restaurantQuery.data) return;
+    const data = restaurantQuery.data;
     setForm({
-      name: restaurantQuery.data.name ?? "",
-      logoUrl: restaurantQuery.data.logoUrl ?? "",
+      name: data.name ?? "",
+      logoUrl: data.logoUrl ?? "",
       logoFile: null,
-      description: restaurantQuery.data.description ?? "",
-      phone: restaurantQuery.data.phone ?? "",
-      email: restaurantQuery.data.email ?? "",
-      address: restaurantQuery.data.address ?? "",
-      openingTime: restaurantQuery.data.openingTime ?? "09:00",
-      closingTime: restaurantQuery.data.closingTime ?? "22:00",
-      gstNumber: restaurantQuery.data.gstNumber ?? "",
-      currency: restaurantQuery.data.currency ?? "INR",
-      timezone: restaurantQuery.data.timezone ?? "Asia/Kolkata",
+      previewUrl: null,
+      description: data.description ?? "",
+      phone: data.phone ?? "",
+      email: data.email ?? "",
+      address: data.address ?? "",
+      openingTime: data.openingTime ?? "09:00",
+      closingTime: data.closingTime ?? "22:00",
+      gstNumber: data.gstNumber ?? "",
+      currency: data.currency ?? "INR",
+      timezone: data.timezone ?? "Asia/Kolkata",
     });
   }, [restaurantQuery.data]);
 
@@ -72,8 +80,11 @@ export default function RestaurantSettingsPage() {
       payload.set("closingTime", form.closingTime);
       payload.set("currency", form.currency);
       payload.set("timezone", form.timezone);
-      if (form.logoUrl.trim()) payload.set("logoUrl", form.logoUrl.trim());
-      if (form.logoFile) payload.set("logo", form.logoFile);
+      if (form.logoFile) {
+        payload.set("logo", form.logoFile);
+      } else if (form.logoUrl.trim()) {
+        payload.set("logoUrl", form.logoUrl.trim());
+      }
       if (form.description.trim()) payload.set("description", form.description.trim());
       if (form.email.trim()) payload.set("email", form.email.trim());
       if (form.gstNumber.trim()) payload.set("gstNumber", form.gstNumber.trim());
@@ -81,36 +92,203 @@ export default function RestaurantSettingsPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["restaurant"] });
-      setMessage("Restaurant settings saved successfully.");
+      setToast({ type: "success", message: "Restaurant settings saved successfully." });
+      setTimeout(() => setToast(null), 4000);
     },
-    onError: (err) => setMessage(getErrorMessage(err)),
+    onError: (err) => {
+      setToast({ type: "error", message: getErrorMessage(err) });
+      setTimeout(() => setToast(null), 4000);
+    },
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    setForm((prev) => ({ ...prev, logoFile: file, previewUrl: objectUrl }));
+  };
+
+  const handleRemoveLogo = () => {
+    if (form.previewUrl) URL.revokeObjectURL(form.previewUrl);
+    setForm((prev) => ({ ...prev, logoFile: null, logoUrl: "", previewUrl: null }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const currentLogoUrl = form.previewUrl ?? resolveImageUrl(form.logoUrl);
+
+  const field = (label: string, key: keyof RestaurantForm, type = "text", placeholder = "") => (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-gray-700">{label}</span>
+      <input
+        type={type}
+        value={(form[key] as string) ?? ""}
+        onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/10"
+      />
+    </label>
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Restaurant Settings" subtitle="Update SAFNAM Restaurant profile and business configuration" />
+      <PageHeader title="Restaurant Settings" subtitle="Configure restaurant profile and business information" />
+
+      {/* Toast */}
+      {toast ? (
+        <div className={cn("flex items-center justify-between rounded-xl px-4 py-3 text-sm", toast.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-red-50 text-red-800 border border-red-200")}>
+          <span>{toast.message}</span>
+          <button type="button" onClick={() => setToast(null)} className="ml-4">
+            <X size={16} />
+          </button>
+        </div>
+      ) : null}
+
       {restaurantQuery.isError ? (
-        <EmptyState title="Unable to load settings" description={getErrorMessage(restaurantQuery.error)} />
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
+          <p className="font-medium">Unable to load settings</p>
+          <p className="mt-1 text-sm">{getErrorMessage(restaurantQuery.error)}</p>
+          <button type="button" onClick={() => restaurantQuery.refetch()} className="mt-4 rounded-xl border border-red-300 px-4 py-2 text-sm font-medium hover:bg-red-100">
+            Retry
+          </button>
+        </div>
       ) : (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          {message ? <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div> : null}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Field label="Restaurant Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-            <Field label="Email"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-            <Field label="Logo URL"><Input value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} /></Field>
-            <Field label="Upload Logo"><Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setForm({ ...form, logoFile: e.target.files?.[0] ?? null })} /></Field>
-            <Field label="Opening Time"><Input type="time" value={form.openingTime} onChange={(e) => setForm({ ...form, openingTime: e.target.value })} /></Field>
-            <Field label="Closing Time"><Input type="time" value={form.closingTime} onChange={(e) => setForm({ ...form, closingTime: e.target.value })} /></Field>
-            <Field label="GST Number"><Input value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} /></Field>
-            <Field label="Currency"><Input value={form.currency} maxLength={3} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} /></Field>
-            <Field label="Timezone"><Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} /></Field>
-            <Field label="Address"><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-            <div className="lg:col-span-2"><Field label="Description"><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field></div>
-          </div>
-          <div className="mt-6 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => restaurantQuery.refetch()}>Reset</Button>
-            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>Save Changes</Button>
+        <div className="space-y-6">
+          {/* ── Logo ── */}
+          <Section icon={<Camera size={18} />} title="Restaurant Logo">
+            <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+              {/* Logo Preview */}
+              <div className="relative flex-shrink-0">
+                {currentLogoUrl ? (
+                  <img src={currentLogoUrl} alt="Restaurant logo" className="h-24 w-24 rounded-2xl border border-gray-200 object-cover shadow-sm" />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50">
+                    <Building2 size={28} className="text-gray-400" />
+                  </div>
+                )}
+                {currentLogoUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200"
+                    title="Remove logo"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Upload controls */}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Upload a new logo</p>
+                  <p className="mt-0.5 text-xs text-gray-500">JPEG, PNG or WebP · Max 5 MB</p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  <Upload size={16} />
+                  {form.logoFile ? "Change File" : "Choose File"}
+                </button>
+                {form.logoFile ? (
+                  <p className="text-xs text-emerald-700">Selected: {form.logoFile.name}</p>
+                ) : null}
+              </div>
+            </div>
+          </Section>
+
+          {/* ── Restaurant Information ── */}
+          <Section icon={<Building2 size={18} />} title="Restaurant Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {field("Restaurant Name *", "name", "text", "e.g. SAFNAM Restaurant")}
+              {field("GST Number", "gstNumber", "text", "e.g. 29ABCDE1234F1Z5")}
+              <label className="sm:col-span-2 block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">Description</span>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Brief description of your restaurant..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/10"
+                />
+              </label>
+            </div>
+          </Section>
+
+          {/* ── Contact ── */}
+          <Section icon={<Phone size={18} />} title="Contact Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {field("Phone Number *", "phone", "tel", "e.g. +91 9999999999")}
+              {field("Email", "email", "email", "e.g. contact@restaurant.com")}
+              <label className="sm:col-span-2 block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">Address *</span>
+                <textarea
+                  value={form.address}
+                  onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+                  rows={2}
+                  placeholder="Full restaurant address..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/10"
+                />
+              </label>
+            </div>
+          </Section>
+
+          {/* ── Operating Hours ── */}
+          <Section icon={<Clock size={18} />} title="Operating Hours">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {field("Opening Time *", "openingTime", "time")}
+              {field("Closing Time *", "closingTime", "time")}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              These hours are used in booking validation and displayed on customer pages.
+            </p>
+          </Section>
+
+          {/* ── Localization ── */}
+          <Section icon={<Globe size={18} />} title="Localization">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">Currency *</span>
+                <input
+                  type="text"
+                  value={form.currency}
+                  maxLength={3}
+                  onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }))}
+                  placeholder="INR"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/10"
+                />
+              </label>
+              {field("Timezone", "timezone", "text", "e.g. Asia/Kolkata")}
+            </div>
+          </Section>
+
+          {/* ── Save ── */}
+          <div className="flex items-center justify-end gap-3 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => restaurantQuery.refetch()}
+              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              disabled={saveMutation.isPending}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || restaurantQuery.isLoading}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save size={16} />
+              {saveMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
           </div>
         </div>
       )}
@@ -118,6 +296,14 @@ export default function RestaurantSettingsPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>{children}</label>;
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="mb-5 flex items-center gap-2">
+        <span className="text-amber-600">{icon}</span>
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
 }

@@ -317,6 +317,7 @@ model Floor {
   updatedBy    String?       @db.Uuid
   restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   tables       DiningTable[]
+  offerFloors  OfferFloor[]
 
   @@unique([restaurantId, name])
   @@index([restaurantId])
@@ -891,18 +892,47 @@ model Offer {
   endsAt        DateTime
   status        MenuEntityStatus  @default(ACTIVE)
   applicableTo  OfferApplicableTo @default(BOTH)
+  allFloors     Boolean           @default(true)
+  allRoomTypes  Boolean           @default(true)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   deletedAt     DateTime?
   createdBy     String?           @db.Uuid
   updatedBy     String?           @db.Uuid
   bookings      Booking[]
+  floors        OfferFloor[]
+  roomTypes     OfferRoomType[]
 
   @@index([type])
   @@index([status])
   @@index([startsAt, endsAt])
   @@index([deletedAt])
   @@map("offers")
+}
+
+model OfferFloor {
+  id        String   @id @default(uuid()) @db.Uuid
+  offerId   String   @db.Uuid
+  floorId   String   @db.Uuid
+  createdAt DateTime @default(now())
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  floor     Floor    @relation(fields: [floorId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, floorId])
+  @@index([floorId])
+  @@map("offer_floors")
+}
+
+model OfferRoomType {
+  id        String   @id @default(uuid()) @db.Uuid
+  offerId   String   @db.Uuid
+  roomType  String   @db.VarChar(80)
+  createdAt DateTime @default(now())
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, roomType])
+  @@index([roomType])
+  @@map("offer_room_types")
 }
 
 model BookingGuest {

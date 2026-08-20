@@ -6,10 +6,12 @@ import { Link } from "react-router-dom";
 import { useLogin } from "../hooks/useLogin";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
 import { cn } from "@/utils/cn";
+import { useRestaurantSettings } from "@/hooks/useRestaurantSettings";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading, errorMessage } = useLogin();
+  const { settings } = useRestaurantSettings();
   const {
     register,
     handleSubmit,
@@ -36,7 +38,7 @@ export function LoginForm() {
     <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-        <p className="text-gray-500 text-sm mt-1">Sign in to your SAFNAM account</p>
+        <p className="text-gray-500 text-sm mt-1">Sign in to your {settings.name} account</p>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>

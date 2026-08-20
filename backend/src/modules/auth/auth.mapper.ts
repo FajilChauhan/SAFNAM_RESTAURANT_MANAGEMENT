@@ -9,4 +9,5 @@ export const toAuthUserDto = (user: User): AuthUserDto => ({
   role: user.role,
   status: user.status,
   avatar: user.avatarUrl,
+  permissions: [],
 });

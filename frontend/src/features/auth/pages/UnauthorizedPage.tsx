@@ -3,8 +3,9 @@ import { Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
+import type { UserRole } from "@/types/auth.types";
 
-const homeByRole = {
+const homeByRole: Record<UserRole, string> = {
   CUSTOMER: "/customer/dashboard",
   RECEPTION: "/reception",
   KITCHEN: "/kitchen",

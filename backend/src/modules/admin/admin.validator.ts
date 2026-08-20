@@ -2,6 +2,24 @@ import { DiscountType, MenuEntityStatus, OfferApplicableTo, OfferType, UserRole,
 import { z } from "zod";
 
 const staffRoles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN] as const;
+const formBoolean = z.preprocess((value) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+}, z.boolean());
+const formArray = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.preprocess((value) => {
+    if (typeof value === "string") {
+      if (!value.trim()) return [];
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [value];
+      }
+    }
+    return value;
+  }, z.array(itemSchema));
 
 export const adminListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -54,12 +72,31 @@ const offerBaseSchema = z.object({
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date(),
   status: z.nativeEnum(MenuEntityStatus).default(MenuEntityStatus.ACTIVE),
+  allFloors: formBoolean.default(true),
+  floorIds: formArray(z.string().uuid()).default([]),
+  allRoomTypes: formBoolean.default(true),
+  roomTypes: formArray(z.string().trim().min(1).max(80)).default([]),
 });
 
-export const createOfferSchema = offerBaseSchema.refine((data) => data.startsAt <= data.endsAt, {
-  message: "Offer start date cannot be after end date",
-  path: ["endsAt"],
-});
+const validateOfferScope = (data: z.infer<typeof offerBaseSchema>, ctx: z.RefinementCtx) => {
+  if (data.startsAt > data.endsAt) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Offer start date cannot be after end date", path: ["endsAt"] });
+  }
+  if ((data.applicableTo === OfferApplicableTo.TABLE || data.applicableTo === OfferApplicableTo.BOTH) && !data.allFloors && data.floorIds.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select at least one floor or choose all floors", path: ["floorIds"] });
+  }
+  if ((data.applicableTo === OfferApplicableTo.ROOM || data.applicableTo === OfferApplicableTo.BOTH) && !data.allRoomTypes && data.roomTypes.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select at least one room category or choose all room categories", path: ["roomTypes"] });
+  }
+  if (data.applicableTo === OfferApplicableTo.TABLE && !data.allRoomTypes && data.roomTypes.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Room categories cannot be assigned to a table-only offer", path: ["roomTypes"] });
+  }
+  if (data.applicableTo === OfferApplicableTo.ROOM && !data.allFloors && data.floorIds.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Floors cannot be assigned to a room-only offer", path: ["floorIds"] });
+  }
+};
+
+export const createOfferSchema = offerBaseSchema.superRefine(validateOfferScope);
 
 export const updateOfferSchema = offerBaseSchema
   .partial()

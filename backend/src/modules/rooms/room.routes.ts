@@ -11,5 +11,6 @@ const roomImageUpload = uploadService.createSingleUpload(imageUploadConfig("gall
 
 roomRouter.post("/", roomImageUpload, roomController.create);
 roomRouter.get("/", roomController.list);
+roomRouter.get("/types", roomController.types);
 roomRouter.patch("/:id", roomImageUpload, roomController.update);
 roomRouter.delete("/:id", roomController.delete);

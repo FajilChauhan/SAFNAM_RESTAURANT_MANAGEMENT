@@ -52,6 +52,18 @@ const offerSelect = {
   startsAt: true,
   endsAt: true,
   status: true,
+  allFloors: true,
+  allRoomTypes: true,
+  floors: {
+    select: {
+      floor: {
+        select: { id: true, name: true },
+      },
+    },
+  },
+  roomTypes: {
+    select: { roomType: true },
+  },
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.OfferSelect;
@@ -211,17 +223,36 @@ export class AdminRepository {
   }
 
   createOffer(data: CreateOfferDto & { createdBy?: string }) {
+    const { floorIds, roomTypes, ...offerData } = data;
     return prisma.offer.create({
-      data: this.createOfferData(data),
+      data: {
+        ...this.createOfferData(offerData),
+        floors: offerData.allFloors ? undefined : { create: floorIds.map((floorId) => ({ floorId })) },
+        roomTypes: offerData.allRoomTypes ? undefined : { create: roomTypes.map((roomType) => ({ roomType })) },
+      },
       select: offerSelect,
     });
   }
 
   updateOffer(id: string, data: UpdateOfferDto & { updatedBy?: string }) {
-    return prisma.offer.update({
-      where: { id },
-      data: this.updateOfferData(data),
-      select: offerSelect,
+    const { floorIds, roomTypes, ...offerData } = data;
+    return prisma.$transaction(async (tx) => {
+      if (floorIds !== undefined || offerData.allFloors === true || offerData.applicableTo === "ROOM") {
+        await tx.offerFloor.deleteMany({ where: { offerId: id } });
+      }
+      if (roomTypes !== undefined || offerData.allRoomTypes === true || offerData.applicableTo === "TABLE") {
+        await tx.offerRoomType.deleteMany({ where: { offerId: id } });
+      }
+
+      return tx.offer.update({
+        where: { id },
+        data: {
+          ...this.updateOfferData(offerData),
+          floors: offerData.allFloors === false && floorIds ? { create: floorIds.map((floorId) => ({ floorId })) } : undefined,
+          roomTypes: offerData.allRoomTypes === false && roomTypes ? { create: roomTypes.map((roomType) => ({ roomType })) } : undefined,
+        },
+        select: offerSelect,
+      });
     });
   }
 
@@ -383,7 +414,7 @@ export class AdminRepository {
     return { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 };
   }
 
-  private createOfferData(data: CreateOfferDto & { createdBy?: string }): Prisma.OfferUncheckedCreateInput {
+  private createOfferData(data: Omit<CreateOfferDto, "floorIds" | "roomTypes"> & { createdBy?: string }): Prisma.OfferUncheckedCreateInput {
     return {
       ...data,
       applicableTo: data.applicableTo ?? OfferApplicableTo.BOTH,
@@ -393,7 +424,7 @@ export class AdminRepository {
     };
   }
 
-  private updateOfferData(data: UpdateOfferDto & { updatedBy?: string }): Prisma.OfferUpdateInput {
+  private updateOfferData(data: Omit<UpdateOfferDto, "floorIds" | "roomTypes"> & { updatedBy?: string }): Prisma.OfferUpdateInput {
     return {
       ...data,
       discountValue: data.discountValue === undefined ? undefined : new Prisma.Decimal(data.discountValue),

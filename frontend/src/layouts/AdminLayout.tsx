@@ -20,50 +20,50 @@ import {
   Shield,
   ScrollText,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/utils/cn";
 import { Avatar } from "@/components/ui";
-import { restaurantApi } from "@/api/restaurant.api";
 import { adminApi } from "@/api/admin.api";
+import { useRestaurantSettings, resolveImageUrl } from "@/hooks/useRestaurantSettings";
 
 type NavItem = {
   label: string;
   to: string;
   icon: ReactNode;
+  permission: string;
 };
 
 const navGroups: Array<{ title: string; items: NavItem[] }> = [
-  { title: "Overview", items: [{ label: "Dashboard", to: "/admin", icon: <LayoutDashboard size={18} /> }] },
+  { title: "Overview", items: [{ label: "Dashboard", to: "/admin", icon: <LayoutDashboard size={18} />, permission: "operations.admin.view" }] },
   {
     title: "Management",
     items: [
-      { label: "Employees", to: "/admin/employees", icon: <Users size={18} /> },
-      { label: "Customers", to: "/admin/customers", icon: <UserCheck size={18} /> },
-      { label: "Bookings", to: "/admin/bookings", icon: <CalendarDays size={18} /> },
+      { label: "Employees", to: "/admin/employees", icon: <Users size={18} />, permission: "operations.employees.view" },
+      { label: "Customers", to: "/admin/customers", icon: <UserCheck size={18} />, permission: "operations.customers.view" },
+      { label: "Bookings", to: "/admin/bookings", icon: <CalendarDays size={18} />, permission: "operations.bookings.view" },
     ],
   },
   {
     title: "Restaurant",
     items: [
-      { label: "Menu Items", to: "/admin/menu", icon: <UtensilsCrossed size={18} /> },
-      { label: "Categories", to: "/admin/categories", icon: <Tag size={18} /> },
-      { label: "Tables", to: "/admin/tables", icon: <Grid3X3 size={18} /> },
-      { label: "Floors", to: "/admin/floors", icon: <Layers size={18} /> },
-      { label: "Rooms", to: "/admin/rooms", icon: <BedDouble size={18} /> },
+      { label: "Menu Items", to: "/admin/menu", icon: <UtensilsCrossed size={18} />, permission: "operations.menu.view" },
+      { label: "Categories", to: "/admin/categories", icon: <Tag size={18} />, permission: "operations.categories.view" },
+      { label: "Tables", to: "/admin/tables", icon: <Grid3X3 size={18} />, permission: "operations.tables.view" },
+      { label: "Floors", to: "/admin/floors", icon: <Layers size={18} />, permission: "operations.floors.view" },
+      { label: "Rooms", to: "/admin/rooms", icon: <BedDouble size={18} />, permission: "operations.rooms.view" },
     ],
   },
   {
     title: "Business",
     items: [
-      { label: "Offers", to: "/admin/offers", icon: <Percent size={18} /> },
-      { label: "Reports", to: "/admin/reports", icon: <BarChart3 size={18} /> },
-      { label: "Notifications", to: "/admin/notifications", icon: <Bell size={18} /> },
-      { label: "Roles", to: "/admin/roles", icon: <Shield size={18} /> },
-      { label: "Permissions", to: "/admin/permissions", icon: <Shield size={18} /> },
-      { label: "Audit Logs", to: "/admin/audit-logs", icon: <ScrollText size={18} /> },
-      { label: "Settings", to: "/admin/settings", icon: <Settings size={18} /> },
+      { label: "Offers", to: "/admin/offers", icon: <Percent size={18} />, permission: "operations.offers.view" },
+      { label: "Reports", to: "/admin/reports", icon: <BarChart3 size={18} />, permission: "operations.reports.view" },
+      { label: "Notifications", to: "/admin/notifications", icon: <Bell size={18} />, permission: "operations.notifications.view" },
+      { label: "Roles", to: "/admin/roles", icon: <Shield size={18} />, permission: "operations.roles.view" },
+      { label: "Permissions", to: "/admin/permissions", icon: <Shield size={18} />, permission: "operations.permissions.manage" },
+      { label: "Audit Logs", to: "/admin/audit-logs", icon: <ScrollText size={18} />, permission: "operations.audit-logs.view" },
+      { label: "Settings", to: "/admin/settings", icon: <Settings size={18} />, permission: "operations.settings.view" },
     ],
   },
 ];
@@ -92,29 +92,48 @@ export default function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
-  const restaurantQuery = useQuery({ queryKey: ["restaurant"], queryFn: async () => (await restaurantApi.getInfo()).data.data.restaurant });
+
+  // Use the centralized restaurant settings hook
+  const { settings } = useRestaurantSettings();
   const notificationsQuery = useQuery({ queryKey: ["admin", "layout-notifications"], queryFn: async () => (await adminApi.auditLogs({ limit: 5 })).data.data.audit.activities });
 
   const title = useMemo(() => pageTitles[location.pathname] ?? "Dashboard", [location.pathname]);
-  const restaurantName = restaurantQuery.data?.name ?? "SAFNAM Restaurant";
+  const restaurantName = settings.name;
+  const logoUrl = resolveImageUrl(settings.logoUrl);
   const notificationCount = notificationsQuery.data?.length ?? 0;
+  const userPermissions = user?.permissions ?? [];
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => userPermissions.includes(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <aside className={cn("sticky top-0 flex h-screen flex-col bg-gray-900 text-white transition-all duration-300", collapsed ? "w-16" : "w-64")}>
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-          <div className={cn("transition-all", collapsed && "opacity-0")}>
-            <div className="font-display text-xl font-bold text-amber-400">SAFNAM</div>
-            <div className="text-xs text-slate-400">Admin Panel</div>
+          <div className={cn("flex min-w-0 items-center gap-2 transition-all", collapsed && "opacity-0 pointer-events-none")}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={restaurantName} className="h-8 w-8 rounded-lg object-cover shrink-0" />
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600">
+                <UtensilsCrossed size={16} className="text-white" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="truncate font-display text-sm font-bold text-white">{restaurantName}</div>
+              <div className="text-[10px] text-slate-400">Admin Panel</div>
+            </div>
           </div>
-          <button type="button" onClick={() => setCollapsed((value) => !value)} className="rounded-xl p-2 text-gray-300 hover:bg-white/10">
+          <button type="button" onClick={() => setCollapsed((value) => !value)} className="shrink-0 rounded-xl p-2 text-gray-300 hover:bg-white/10">
             {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
 
         <div className="admin-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-5">
-            {navGroups.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.title}>
                 <div className={cn("mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500", collapsed && "hidden")}>
                   {group.title}
@@ -172,7 +191,7 @@ export default function AdminLayout() {
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">{title}</h1>
-            <p className="text-xs text-gray-400">SAFNAM Restaurant</p>
+            <p className="text-xs text-gray-400">{restaurantName}</p>
           </div>
           <div className="flex items-center gap-4">
             <button

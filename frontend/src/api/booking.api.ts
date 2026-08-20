@@ -259,4 +259,8 @@ export const bookingApi = {
     api.get<{ success: true; data: { reward: { id: string; rewardCode: string; discountValue: number; expiresAt: string; status: string } | null } }>(
       `/api/bookings/customer/${customerId}/active-reward`
     ),
+
+  /** Get eligible offers for a booking configuration */
+  getEligibleOffers: (params: { bookingType: BookingType; tableId?: string; roomId?: string }) =>
+    api.get<{ success: true; data: { offers: AdminOffer[] } }>("/api/bookings/eligible-offers", { params }),
 };

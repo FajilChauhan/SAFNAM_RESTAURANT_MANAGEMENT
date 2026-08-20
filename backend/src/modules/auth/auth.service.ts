@@ -3,6 +3,7 @@ import { UserStatus } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError.js";
 import { hashPassword, comparePassword } from "../../utils/password.js";
 import { signJwt, verifyJwt } from "../../utils/jwt.js";
+import { permissionService } from "../operations/services/permission.service.js";
 import { toAuthUserDto } from "./auth.mapper.js";
 import { AuthRepository } from "./auth.repository.js";
 import type { AuthUserDto, ChangePasswordDto, LoginDto, RegisterDto } from "./dto/auth.dto.js";
@@ -37,7 +38,7 @@ export class AuthService implements IAuthService {
       passwordHash,
     });
 
-    return toAuthUserDto(user);
+    return this.toAuthUserWithPermissions(user);
   }
 
   async login(dto: LoginDto, metadata: RequestMetadata): Promise<TokenPair & { user: AuthUserDto }> {
@@ -63,7 +64,7 @@ export class AuthService implements IAuthService {
 
     return {
       ...tokens,
-      user: toAuthUserDto(user),
+      user: await this.toAuthUserWithPermissions(user),
     };
   }
 
@@ -124,7 +125,12 @@ export class AuthService implements IAuthService {
       throw new ApiError(401, "Authenticated user was not found");
     }
 
-    return toAuthUserDto(user);
+    return this.toAuthUserWithPermissions(user);
+  }
+
+  private async toAuthUserWithPermissions(user: Parameters<typeof toAuthUserDto>[0]): Promise<AuthUserDto> {
+    const permissions = await permissionService.permissionsForRole(user.role);
+    return { ...toAuthUserDto(user), permissions };
   }
 
   private async createTokenPair(

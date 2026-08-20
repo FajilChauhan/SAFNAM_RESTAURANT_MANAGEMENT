@@ -6,11 +6,13 @@ import { Link } from "react-router-dom";
 import { useRegister } from "../hooks/useRegister";
 import { registerSchema, type RegisterFormValues } from "../schemas/register.schema";
 import { cn } from "@/utils/cn";
+import { useRestaurantSettings } from "@/hooks/useRestaurantSettings";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register: registerUser, isLoading, errorMessage } = useRegister();
+  const { settings } = useRestaurantSettings();
   const {
     register,
     handleSubmit,
@@ -31,7 +33,7 @@ export function RegisterForm() {
     <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-        <p className="text-gray-500 text-sm mt-1">Join SAFNAM as a customer</p>
+        <p className="text-gray-500 text-sm mt-1">Join {settings.name} as a customer</p>
         <p className="mt-1 text-xs text-gray-400">
           Create your account to book tables, order food and enjoy exclusive dining rewards
         </p>

@@ -50,6 +50,11 @@ class RoomController extends BaseController {
 
     this.ok(res, "Room deleted successfully");
   });
+
+  types = asyncHandler(async (_req, res) => {
+    const types = await roomService.getDistinctRoomTypes();
+    this.ok(res, "Room types fetched successfully", { types });
+  });
 }
 
 export const roomController = new RoomController();

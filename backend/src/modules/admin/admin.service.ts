@@ -93,11 +93,20 @@ export class AdminService extends BaseService {
     return this.adminRepository.softDeleteOffer(id, adminId);
   }
 
-  roles() {
+  async roles() {
+    const permissionsByRole = await Promise.all(
+      Object.values(UserRole).map(async (role) => ({
+        role,
+        permissions: await permissionService.permissionsForRole(role),
+      })),
+    );
+
+    const permissionLookup = new Map(permissionsByRole.map((item) => [item.role, item.permissions]));
+
     return Object.values(UserRole).map((role) => ({
       role,
       assignableToEmployee: role !== UserRole.CUSTOMER,
-      permissions: ROLE_PERMISSION_MAP[role],
+      permissions: permissionLookup.get(role) ?? ROLE_PERMISSION_MAP[role],
     }));
   }
 
@@ -107,6 +116,9 @@ export class AdminService extends BaseService {
 
   async setRolePermissions(role: UserRole, permissions: OperationPermission[], adminId: string) {
     this.ensure(role !== UserRole.ADMIN, "ADMIN permissions cannot be reduced from the admin panel");
+    const known = new Set(Object.values(OPERATION_PERMISSIONS));
+    const unknown = permissions.filter((permission) => !known.has(permission));
+    this.ensure(unknown.length === 0, `Unknown permissions: ${unknown.join(", ")}`);
     return permissionService.setRolePermissions(role, permissions, adminId);
   }
 

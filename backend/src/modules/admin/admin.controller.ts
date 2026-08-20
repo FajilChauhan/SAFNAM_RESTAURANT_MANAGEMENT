@@ -93,7 +93,7 @@ class AdminController extends BaseController {
   });
 
   roles = asyncHandler(async (_req, res) => {
-    this.ok(res, "Roles fetched successfully", { roles: adminService.roles() });
+    this.ok(res, "Roles fetched successfully", { roles: await adminService.roles() });
   });
 
   permissions = asyncHandler(async (_req, res) => {

@@ -14,6 +14,7 @@ export interface User {
   role: UserRole
   status: UserStatus
   avatar: string | null
+  permissions: string[]
 }
 
 // Backend login response: { success, data: { accessToken, user } }

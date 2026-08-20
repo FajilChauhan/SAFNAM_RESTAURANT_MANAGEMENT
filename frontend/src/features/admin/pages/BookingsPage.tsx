@@ -16,6 +16,7 @@ import {
   type TableAvailabilityResult,
   type RoomAvailabilityResult,
 } from "@/api/booking.api";
+import { authApi } from "@/api/auth.api";
 import { adminApi, type AdminCustomer, type AdminOffer } from "@/api/admin.api";
 import { floorApi } from "@/api/floor.api";
 import { roomApi } from "@/api/room.api";
@@ -202,7 +203,7 @@ export default function BookingsPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             className={cn(
-              "fixed right-6 top-20 z-[100] flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg",
+              "fixed right-6 top-20 z-100 flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg",
               toast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white",
             )}
           >
@@ -498,7 +499,7 @@ function TableBookingTable({
   isMutating: boolean;
 }) {
   return (
-    <table className="w-full min-w-[1000px] text-left text-sm font-sans">
+    <table className="w-full min-w-1000px text-left text-sm font-sans">
       <thead>
         <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <th className="px-5 py-3 font-semibold">Booking #</th>
@@ -621,7 +622,7 @@ function RoomBookingTable({
   isMutating: boolean;
 }) {
   return (
-    <table className="w-full min-w-[1000px] text-left text-sm font-sans">
+    <table className="w-full min-w-1000px text-left text-sm font-sans">
       <thead>
         <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <th className="px-5 py-3 font-semibold">Booking #</th>
@@ -1381,8 +1382,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-slate-400 w-4 flex-shrink-0">{icon}</span>
-      <span className="text-slate-500 w-20 flex-shrink-0">{label}</span>
+      <span className="text-slate-400 w-4 shrink-0">{icon}</span>
+      <span className="text-slate-500 w-20 shrink-0">{label}</span>
       <span className="font-semibold text-slate-800">{value}</span>
     </div>
   );
@@ -1433,8 +1434,12 @@ function CreateBookingModal({
   onClose: () => void;
   onSuccess: (type: BookingType) => void;
 }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<CreateBookingForm>(emptyForm(defaultType));
   const [formError, setFormError] = useState("");
+  const [customerForm, setCustomerForm] = useState({ name: "", phone: "", email: "", password: "" });
+  const [customerFormError, setCustomerFormError] = useState("");
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [guestsList, setGuestsList] = useState<Array<{ fullName: string; aadhaarNumber: string }>>([
     { fullName: "", aadhaarNumber: "" },
     { fullName: "", aadhaarNumber: "" },
@@ -1442,6 +1447,37 @@ function CreateBookingModal({
 
   const set = <K extends keyof CreateBookingForm>(key: K, val: CreateBookingForm[K]) =>
     setForm((p) => ({ ...p, [key]: val }));
+
+  const createCustomerMutation = useMutation({
+    mutationFn: async () => {
+      const name = customerForm.name.trim();
+      const phone = customerForm.phone.trim();
+      const password = customerForm.password.trim();
+
+      if (!name) throw new Error("Customer name is required");
+      if (!phone) throw new Error("Phone number is required");
+      if (password.length < 8) throw new Error("Password must be at least 8 characters");
+
+      const { data } = await authApi.register({
+        name,
+        phone,
+        email: customerForm.email.trim() || undefined,
+        password,
+      });
+
+      return data.data.user;
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "customers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "customers", "select"] });
+      setForm((prev) => ({ ...prev, customerId: user.id }));
+      setCustomerForm({ name: "", phone: "", email: "", password: "" });
+      setCustomerFormError("");
+      setShowCustomerForm(false);
+      alert("successfully created customer. You can now proceed to create the booking.");
+    },
+    onError: (err) => setCustomerFormError(getErrorMessage(err)),
+  });
 
   // ─── Guest List Sync ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -1492,13 +1528,20 @@ function CreateBookingModal({
     enabled: form.bookingType === "TABLE",
   });
 
+  // Eligible offers — scoped by bookingType + selected resource (floor/room-type check is server-side)
   const offersQuery = useQuery({
-    queryKey: ["admin", "offers", "all"],
+    queryKey: ["booking", "eligible-offers", form.bookingType, form.resourceId, form.customerId],
+    enabled: !!form.resourceId && !!form.customerId,
     queryFn: async () => {
-      const { data } = await adminApi.offers.list({ limit: 100 });
+      const params: { bookingType: BookingType; tableId?: string; roomId?: string } = {
+        bookingType: form.bookingType,
+      };
+      if (form.bookingType === "TABLE") params.tableId = form.resourceId;
+      else params.roomId = form.resourceId;
+      const { data } = await bookingApi.getEligibleOffers(params);
       return data.data.offers;
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   const activeRewardQuery = useQuery({
@@ -1510,19 +1553,7 @@ function CreateBookingModal({
     },
   });
 
-  // Filter offers by booking applicability
-  const applicableOffers = useMemo(() => {
-    const offers = offersQuery.data ?? [];
-    return offers.filter((o) => {
-      if (o.status !== "ACTIVE") return false;
-      const applicableTo = (o as any).applicableTo ?? "BOTH";
-      if (form.bookingType === "ROOM") {
-        return applicableTo === "ROOM" || applicableTo === "BOTH";
-      } else {
-        return applicableTo === "TABLE" || applicableTo === "BOTH";
-      }
-    });
-  }, [offersQuery.data, form.bookingType]);
+  const applicableOffers = offersQuery.data ?? [];
 
   const availabilityReady = form.bookingType === "ROOM"
     ? Boolean(form.date) &&
@@ -1711,7 +1742,7 @@ function CreateBookingModal({
           {/* Error */}
           {formError && (
             <div className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-              <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+              <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
               <p className="text-sm text-red-700">{formError}</p>
             </div>
           )}
@@ -1749,22 +1780,97 @@ function CreateBookingModal({
             {customersQuery.isLoading ? (
               <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> Loading customers…</div>
             ) : (
-              <select
-                value={form.customerId}
-                onChange={(e) => {
-                  set("customerId", e.target.value);
-                  set("appliedOfferId", "");
-                  set("useGameDiscount", false);
-                }}
-                className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:outline-none"
-              >
-                <option value="">Select customer</option>
-                {(customersQuery.data ?? []).map((c: AdminCustomer) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName} · {c.phoneNumber}
-                  </option>
-                ))}
-              </select>
+              <>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={form.customerId}
+                    onChange={(e) => {
+                      set("customerId", e.target.value);
+                      set("appliedOfferId", "");
+                      set("useGameDiscount", false);
+                    }}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:outline-none"
+                  >
+                    <option value="">Select customer</option>
+                    {(customersQuery.data ?? []).map((c: AdminCustomer) => (
+                      <option key={c.id} value={c.id}>
+                        {c.fullName} · {c.phoneNumber}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerFormError("");
+                      setShowCustomerForm((prev) => !prev);
+                    }}
+                    className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                  >
+                    Create customer
+                  </button>
+                </div>
+
+                {showCustomerForm && (
+                  <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    {customerFormError && (
+                      <p className="text-xs text-red-600">{customerFormError}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={customerForm.name}
+                        onChange={(e) => setCustomerForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Full name"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
+                      />
+                      <input
+                        type="tel"
+                        value={customerForm.phone}
+                        onChange={(e) => setCustomerForm((prev) => ({ ...prev, phone: e.target.value.replace(/\D/g, "") }))}
+                        placeholder="Phone number"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="email"
+                        value={customerForm.email}
+                        onChange={(e) => setCustomerForm((prev) => ({ ...prev, email: e.target.value }))}
+                        placeholder="Email (optional)"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
+                      />
+                      <input
+                        type="password"
+                        value={customerForm.password}
+                        onChange={(e) => setCustomerForm((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="Password"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCustomerForm(false);
+                          setCustomerFormError("");
+                          setCustomerForm({ name: "", phone: "", email: "", password: "" });
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => createCustomerMutation.mutate()}
+                        disabled={createCustomerMutation.isPending}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                      >
+                        {createCustomerMutation.isPending ? "Creating..." : "Save customer"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </FormField>
 
@@ -1922,7 +2028,12 @@ function CreateBookingModal({
                       key={id}
                       type="button"
                       disabled={!isAvail}
-                      onClick={() => isAvail && set("resourceId", id)}
+                      onClick={() => {
+                        if (!isAvail) return;
+                        set("resourceId", id);
+                        set("appliedOfferId", "");
+                        set("useGameDiscount", false);
+                      }}
                       className={cn(
                         "w-full rounded-xl border px-4 py-2.5 text-sm text-left transition",
                         form.resourceId === id

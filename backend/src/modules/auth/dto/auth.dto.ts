@@ -27,4 +27,5 @@ export type AuthUserDto = {
   role: UserRole;
   status: UserStatus;
   avatar: string | null;
+  permissions: string[];
 };

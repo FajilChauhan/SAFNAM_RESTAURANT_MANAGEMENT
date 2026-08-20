@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, LayoutDashboard, LogOut, Menu, ShoppingCart, UtensilsCrossed, X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/utils/cn";
+import { useRestaurantSettings, resolveImageUrl } from "@/hooks/useRestaurantSettings";
 
 const navItems = [
   { label: "Home", to: "/customer" },
@@ -24,6 +25,8 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const { settings } = useRestaurantSettings();
+  const logoUrl = resolveImageUrl(settings.logoUrl);
 
   useEffect(() => {
     document.documentElement.style.scrollBehavior = "smooth";
@@ -56,8 +59,12 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
       <nav className="fixed top-0 z-50 w-full border-b border-gray-100 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-dark/90">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link to="/customer" className="flex items-center gap-2 font-display text-xl font-bold text-emerald-700">
-            <UtensilsCrossed className="h-5 w-5 text-amber-500" />
-            SAFNAM
+            {logoUrl ? (
+              <img src={logoUrl} alt={settings.name} className="h-7 w-7 rounded-lg object-cover" />
+            ) : (
+              <UtensilsCrossed className="h-5 w-5 text-amber-500" />
+            )}
+            {settings.name}
           </Link>
 
           <div className="hidden items-center gap-6 md:flex">
@@ -176,8 +183,12 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
           >
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2 font-display text-lg font-bold text-emerald-700">
-                <UtensilsCrossed className="h-5 w-5 text-amber-500" />
-                SAFNAM
+                {logoUrl ? (
+                  <img src={logoUrl} alt={settings.name} className="h-6 w-6 rounded-lg object-cover" />
+                ) : (
+                  <UtensilsCrossed className="h-5 w-5 text-amber-500" />
+                )}
+                {settings.name}
               </span>
               <button type="button" onClick={() => setIsOpen(false)} className="rounded-xl p-2">
                 <X className="h-5 w-5 text-gray-700" />

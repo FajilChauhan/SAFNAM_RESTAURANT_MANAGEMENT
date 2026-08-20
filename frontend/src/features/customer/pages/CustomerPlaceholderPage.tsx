@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { CustomerLayout } from "@/layouts/CustomerLayout";
+import { useRestaurantSettings } from "@/hooks/useRestaurantSettings";
 
 export default function CustomerPlaceholderPage({ title }: { title: string }) {
+  const { settings } = useRestaurantSettings();
+
   useEffect(() => {
-    document.title = `SAFNAM - ${title}`;
-  }, [title]);
+    document.title = `${title} — ${settings.name}`;
+  }, [title, settings.name]);
 
   return (
     <CustomerLayout>

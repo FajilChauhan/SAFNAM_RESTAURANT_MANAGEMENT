@@ -46,6 +46,10 @@ export type AdminOffer = {
   startsAt: string;
   endsAt: string;
   status: EntityStatus;
+  allFloors: boolean;
+  allRoomTypes: boolean;
+  floors?: Array<{ floor: { id: string; name: string } }>;
+  roomTypes?: Array<{ roomType: string }>;
   createdAt: string;
   updatedAt: string;
 };

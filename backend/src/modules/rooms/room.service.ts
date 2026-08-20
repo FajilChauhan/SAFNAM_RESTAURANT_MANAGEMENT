@@ -89,6 +89,10 @@ export class RoomService extends BaseService {
     deletePhysicalFile(room.imageUrl);
     await this.roomRepository.delete(id);
   }
+
+  getDistinctRoomTypes() {
+    return this.roomRepository.getDistinctRoomTypes();
+  }
 }
 
 export const roomService = new RoomService(new RoomRepository());

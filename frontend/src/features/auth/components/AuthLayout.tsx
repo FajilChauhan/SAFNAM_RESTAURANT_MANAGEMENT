@@ -2,14 +2,18 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useRestaurantSettings, resolveImageUrl } from "@/hooks/useRestaurantSettings";
 
 const highlights = [
   { label: "Book tables and rooms" },
   { label: "Track orders and invoices" },
-  { label: "Access SAFNAM rewards" },
+  { label: "Access exclusive rewards" },
 ];
 
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const { settings } = useRestaurantSettings();
+  const logoUrl = resolveImageUrl(settings.logoUrl);
+
   return (
     <div className="min-h-screen bg-white text-slate-900 lg:grid lg:grid-cols-[1fr_500px]">
       <div className="relative hidden overflow-hidden lg:block">
@@ -31,8 +35,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%)' }}
         />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
-          <Link to="/customer" className="text-amber-400 font-bold text-2xl tracking-widest">
-            SAFNAM
+          <Link to="/customer" className="flex items-center gap-2 text-amber-400 font-bold text-2xl tracking-widest">
+            {logoUrl ? (
+              <img src={logoUrl} alt={settings.name} className="h-8 w-8 rounded-lg object-cover" />
+            ) : null}
+            {settings.name}
           </Link>
           <div className="max-w-xl space-y-4">
             <h1
@@ -45,7 +52,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               className="text-amber-300 font-medium text-lg mt-2"
               style={{ textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}
             >
-              SAFNAM Restaurant — Premium Dining Experience
+              {settings.name} — Premium Dining Experience
             </p>
           </div>
           <div className="grid gap-4">
@@ -78,8 +85,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           transition={{ duration: 0.5 }}
         >
           <div className="mb-8 text-center lg:hidden">
-            <Link to="/customer" className="font-display text-3xl font-bold text-slate-900">
-              SAFNAM
+            <Link to="/customer" className="inline-flex items-center gap-2 font-display text-3xl font-bold text-slate-900">
+              {logoUrl ? (
+                <img src={logoUrl} alt={settings.name} className="h-8 w-8 rounded-lg object-cover" />
+              ) : (
+                <UtensilsCrossed className="h-7 w-7 text-amber-500" />
+              )}
+              {settings.name}
             </Link>
           </div>
           {children}

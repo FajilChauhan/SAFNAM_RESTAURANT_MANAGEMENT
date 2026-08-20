@@ -1,4 +1,4 @@
-import { BookingStatus, BookingType, RoomStatus, TableStatus, UserRole, DiscountSource, RewardStatus } from "@prisma/client";
+import { BookingStatus, BookingType, RoomStatus, TableStatus, UserRole, DiscountSource, RewardStatus, OfferApplicableTo } from "@prisma/client";
 import { ERROR_CODES } from "../../constants/errorCodes.js";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
@@ -57,6 +57,7 @@ export class BookingService extends BaseService {
     if (dto.appliedOfferId) {
       const offer = await prisma.offer.findUnique({
         where: { id: dto.appliedOfferId, deletedAt: null },
+        include: { floors: true, roomTypes: true },
       });
 
       if (!offer || offer.status !== "ACTIVE") {
@@ -74,6 +75,34 @@ export class BookingService extends BaseService {
       }
       if (dto.bookingType === BookingType.TABLE && offer.applicableTo === "ROOM") {
         throw new ApiError(400, "Selected offer is only valid for room bookings.");
+      }
+
+      // Check level 2 applicability: Floor for Table booking
+      if (dto.bookingType === BookingType.TABLE && dto.tableId) {
+        const table = await prisma.diningTable.findUnique({
+          where: { id: dto.tableId },
+          select: { floorId: true },
+        });
+        if (!table) {
+          throw new ApiError(400, "Dining table not found.");
+        }
+        if (!offer.allFloors && !offer.floors.some((f) => f.floorId === table.floorId)) {
+          throw new ApiError(400, "Selected offer is not applicable to the floor where the table is located.");
+        }
+      }
+
+      // Check level 2 applicability: Room Category/Type for Room booking
+      if (dto.bookingType === BookingType.ROOM && dto.roomId) {
+        const room = await prisma.room.findUnique({
+          where: { id: dto.roomId },
+          select: { roomType: true },
+        });
+        if (!room) {
+          throw new ApiError(400, "Room not found.");
+        }
+        if (!offer.allRoomTypes && !offer.roomTypes.some((rt) => rt.roomType === room.roomType)) {
+          throw new ApiError(400, "Selected offer is not applicable to the room's category/type.");
+        }
       }
 
       discountSource = DiscountSource.OFFER;
@@ -224,6 +253,7 @@ export class BookingService extends BaseService {
       } else if (dto.appliedOfferId) {
         const offer = await prisma.offer.findUnique({
           where: { id: dto.appliedOfferId, deletedAt: null },
+          include: { floors: true, roomTypes: true },
         });
 
         if (!offer || offer.status !== "ACTIVE") {
@@ -235,6 +265,33 @@ export class BookingService extends BaseService {
         }
         if (bookingType === BookingType.TABLE && offer.applicableTo === "ROOM") {
           throw new ApiError(400, "Offer only applicable to room bookings.");
+        }
+
+        // Check level 2 applicability on update
+        if (bookingType === BookingType.TABLE && tableId) {
+          const table = await prisma.diningTable.findUnique({
+            where: { id: tableId },
+            select: { floorId: true },
+          });
+          if (!table) {
+            throw new ApiError(400, "Dining table not found.");
+          }
+          if (!offer.allFloors && !offer.floors.some((f) => f.floorId === table.floorId)) {
+            throw new ApiError(400, "Selected offer is not applicable to the floor where the table is located.");
+          }
+        }
+
+        if (bookingType === BookingType.ROOM && roomId) {
+          const room = await prisma.room.findUnique({
+            where: { id: roomId },
+            select: { roomType: true },
+          });
+          if (!room) {
+            throw new ApiError(400, "Room not found.");
+          }
+          if (!offer.allRoomTypes && !offer.roomTypes.some((rt) => rt.roomType === room.roomType)) {
+            throw new ApiError(400, "Selected offer is not applicable to the room's category/type.");
+          }
         }
 
         discountSource = DiscountSource.OFFER;
@@ -474,6 +531,68 @@ export class BookingService extends BaseService {
     if (conflict.hasConflict) {
       throw new ApiError(409, "Selected resource is already booked during this time", ERROR_CODES.RESOURCE_CONFLICT);
     }
+  }
+
+  async getEligibleOffers(query: { bookingType: BookingType; tableId?: string; roomId?: string }) {
+    const normalizeRoomType = (value?: string | null) => value?.trim().toLowerCase() ?? "";
+
+    const now = new Date();
+    const offers = await prisma.offer.findMany({
+      where: {
+        deletedAt: null,
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        endsAt: { gte: now },
+      },
+      include: {
+        floors: {
+          select: { floorId: true },
+        },
+        roomTypes: {
+          select: { roomType: true },
+        },
+      },
+    });
+
+    if (query.bookingType === BookingType.TABLE) {
+      let floorId: string | null = null;
+      if (query.tableId) {
+        const table = await prisma.diningTable.findUnique({
+          where: { id: query.tableId },
+          select: { floorId: true },
+        });
+        if (table) {
+          floorId = table.floorId;
+        }
+      }
+
+      return offers.filter((o) => {
+        if (o.applicableTo !== OfferApplicableTo.TABLE && o.applicableTo !== OfferApplicableTo.BOTH) return false;
+        if (o.allFloors) return true;
+        if (!floorId) return true;
+        return o.floors.some((f) => f.floorId === floorId);
+      });
+    }
+
+    let roomType: string | null = null;
+    if (query.roomId) {
+      const room = await prisma.room.findUnique({
+        where: { id: query.roomId },
+        select: { roomType: true },
+      });
+      if (room) {
+        roomType = room.roomType;
+      }
+    }
+
+    const normalizedRoomType = normalizeRoomType(roomType);
+
+    return offers.filter((o) => {
+      if (o.applicableTo !== OfferApplicableTo.ROOM && o.applicableTo !== OfferApplicableTo.BOTH) return false;
+      if (o.allRoomTypes) return true;
+      if (!normalizedRoomType) return true;
+      return o.roomTypes.some((rt) => normalizeRoomType(rt.roomType) === normalizedRoomType);
+    });
   }
 
   private async generateBookingNumber() {

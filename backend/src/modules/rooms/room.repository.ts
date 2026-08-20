@@ -61,4 +61,13 @@ export class RoomRepository {
   countBookings(roomId: string) {
     return prisma.booking.count({ where: { roomId } });
   }
+
+  async getDistinctRoomTypes() {
+    const rooms = await prisma.room.findMany({
+      where: { deletedAt: null },
+      select: { roomType: true },
+      distinct: ["roomType"],
+    });
+    return rooms.map((r) => r.roomType);
+  }
 }
