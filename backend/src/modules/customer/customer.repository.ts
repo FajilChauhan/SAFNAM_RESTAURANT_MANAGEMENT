@@ -1,5 +1,5 @@
 // Customer repository owns customer-scoped database reads and engagement writes.
-import { BookingStatus, DiscountType, InvoiceStatus, MenuEntityStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { BookingStatus, DiscountType, InvoiceStatus, MenuEntityStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
 
 export class CustomerRepository {
@@ -48,7 +48,7 @@ export class CustomerRepository {
   topFoods() {
     return prisma.orderItem.groupBy({
       by: ["menuItemId", "itemNameSnapshot"],
-      where: { deletedAt: null },
+      where: { deletedAt: null, order: { status: { not: OrderStatus.CANCELLED }, deletedAt: null } },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 10,

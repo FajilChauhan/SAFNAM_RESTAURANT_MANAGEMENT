@@ -9,6 +9,7 @@ import TablesPage from "../features/admin/pages/TablesPage";
 import FloorsPage from "../features/admin/pages/FloorsPage";
 import RoomsPage from "../features/admin/pages/RoomsPage";
 import BookingsPage from "../features/admin/pages/BookingsPage";
+import OrderManagementPage from "../features/admin/pages/OrderManagementPage";
 import CustomersPage from "../features/admin/pages/CustomersPage";
 import OffersPage from "../features/admin/pages/OffersPage";
 import RestaurantSettingsPage from "../features/admin/pages/RestaurantSettingsPage";
@@ -28,6 +29,7 @@ const AdminRoutes = () => (
         <Route path="floors" element={<FloorsPage />} />
         <Route path="rooms" element={<RoomsPage />} />
         <Route path="bookings" element={<BookingsPage />} />
+        <Route path="orders" element={<OrderManagementPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="menu" element={<MenuItemsPage />} />
         <Route path="categories" element={<MenuCategoriesPage />} />

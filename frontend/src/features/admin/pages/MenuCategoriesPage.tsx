@@ -3,9 +3,11 @@ import { Plus, Search, Edit2, Trash2, Power, PowerOff, Upload, X, HelpCircle, Lo
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { menuApi } from "@/api/menu.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { getErrorMessage } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
+import { useAuthStore } from "@/store/authStore";
 
 type Category = {
   id: string;
@@ -41,6 +43,12 @@ const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1546069901-ba9599a7e63
 
 export default function MenuCategoriesPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.categories.create");
+  const canUpdate = isAdmin || hasPermission("operations.categories.update");
+  const canDelete = isAdmin || hasPermission("operations.categories.delete");
+
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
@@ -212,15 +220,17 @@ export default function MenuCategoriesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Categories</h1>
-          <p className="text-sm text-slate-500">Manage menu categories for SAFNAM Restaurant</p>
-        </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
-          Add Category
-        </Button>
-      </div>
+      <PageHeader
+        title="Categories"
+        subtitle="Manage food menu categories"
+        actions={
+          canCreate ? (
+            <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              Add Category
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Filter and Search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -255,9 +265,11 @@ export default function MenuCategoriesPage() {
           <HelpCircle className="h-10 w-10 text-slate-300 mb-2" />
           <p className="text-sm font-semibold text-slate-700">No categories found</p>
           <p className="text-xs text-slate-500 mt-1">Add categories to organize your menu items.</p>
-          <Button size="sm" className="mt-4" onClick={openCreate} leftIcon={<Plus size={16} />}>
-            Add Category
-          </Button>
+          {canCreate && (
+            <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
+              Add Category
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -298,35 +310,41 @@ export default function MenuCategoriesPage() {
                   <span className="text-xs text-slate-500 font-medium">
                     Menu Items: <strong className="text-slate-800">{category._count?.items ?? 0}</strong>
                   </span>
-                  
-                  {/* Actions */}
+
+                  {/* Actions — only shown when permitted */}
                   <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => openEdit(category)}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                      title="Edit Category"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={() =>
-                        toggleStatusMutation.mutate({
-                          id: category.id,
-                          status: category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                        })
-                      }
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                      title={category.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                    >
-                      {category.status === "ACTIVE" ? <PowerOff size={13} className="text-amber-500" /> : <Power size={13} className="text-emerald-500" />}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category)}
-                      className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 hover:text-red-750 transition"
-                      title="Delete Category"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {canUpdate && (
+                      <button
+                        onClick={() => openEdit(category)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                        title="Edit Category"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    )}
+                    {canUpdate && (
+                      <button
+                        onClick={() =>
+                          toggleStatusMutation.mutate({
+                            id: category.id,
+                            status: category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                          })
+                        }
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                        title={category.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                      >
+                        {category.status === "ACTIVE" ? <PowerOff size={13} className="text-amber-500" /> : <Power size={13} className="text-emerald-500" />}
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(category)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 hover:text-red-750 transition"
+                        title="Delete Category"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

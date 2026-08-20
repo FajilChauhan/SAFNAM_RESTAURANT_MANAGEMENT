@@ -1,11 +1,9 @@
 import {
   BookingStatus,
-  BookingType,
   CartStatus,
   MenuEntityStatus,
   OrderStatus,
   Prisma,
-  TableStatus,
 } from "@prisma/client";
 import { BaseService } from "../../lib/BaseService.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
@@ -36,13 +34,16 @@ export class OrderService extends BaseService {
   }
 
   async getActiveCart(bookingId: string, actor: AuthenticatedUser) {
-    await this.validateBookingCanOrder(bookingId);
+    await this.validateBookingCanOrder(bookingId, actor);
     return this.getOrCreateActiveCart(bookingId, actor.id);
   }
 
   async addItem(dto: AddCartItemDto, actor: AuthenticatedUser) {
-    await this.validateBookingCanOrder(dto.bookingId);
+    await this.validateBookingCanOrder(dto.bookingId, actor);
     const menuItem = await this.validateMenuItem(dto.menuItemId);
+    if (menuItem.availableQuantity < dto.quantity) {
+      throw new ApiError(409, `${menuItem.name} has only ${menuItem.availableQuantity} available`);
+    }
     const variant = dto.variantId ? this.validateVariant(menuItem.variants, dto.variantId) : undefined;
     const addOns = this.validateAddOns(menuItem.addOns, dto.addOnIds ?? []);
     const cart = await this.getOrCreateActiveCart(dto.bookingId, actor.id);
@@ -100,12 +101,13 @@ export class OrderService extends BaseService {
   }
 
   async clearCart(bookingId: string, actor: AuthenticatedUser) {
+    await this.validateBookingCanOrder(bookingId, actor);
     const cart = await this.getOrCreateActiveCart(bookingId, actor.id);
     await this.orderRepository.clearCart(cart.id, actor.id);
   }
 
   async confirmOrder(dto: ConfirmOrderDto, actor: AuthenticatedUser) {
-    await this.validateBookingCanOrder(dto.bookingId);
+    await this.validateBookingCanOrder(dto.bookingId, actor);
     const cart = await this.getOrCreateActiveCart(dto.bookingId, actor.id);
 
     if (cart.items.length === 0) {
@@ -165,15 +167,15 @@ export class OrderService extends BaseService {
     return this.orderRepository.listKitchenQueue();
   }
 
-  private async validateBookingCanOrder(bookingId: string) {
+  private async validateBookingCanOrder(bookingId: string, actor: AuthenticatedUser) {
     const booking = this.ensureExists(await this.orderRepository.findBookingForOrdering(bookingId), "Booking not found");
+
+    if (actor.role === "CUSTOMER" && booking.customerId !== actor.id) {
+      throw new ApiError(403, "You cannot order for another customer's booking");
+    }
 
     if (booking.status !== BookingStatus.CHECKED_IN) {
       throw new ApiError(400, "Only checked-in bookings can place orders");
-    }
-
-    if (booking.bookingType === BookingType.TABLE && booking.table?.status !== TableStatus.OCCUPIED) {
-      throw new ApiError(400, "Only occupied tables can place orders");
     }
 
     return booking;

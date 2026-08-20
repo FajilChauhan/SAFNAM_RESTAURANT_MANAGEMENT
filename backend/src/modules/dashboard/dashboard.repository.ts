@@ -260,7 +260,17 @@ export class DashboardRepository {
     return this.first(
       await prisma.$queryRaw<DashboardRawRow[]>`
         WITH queue AS (
-          SELECT kq.*, o."orderNumber", o.status AS "orderStatus", o."confirmedAt", b."bookingNumber", t."tableNumber", r."roomNumber", u."fullName" AS "customerName"
+          SELECT kq.*, o."orderNumber", o.status AS "orderStatus", o."confirmedAt", b."bookingNumber", t."tableNumber", r."roomNumber", u."fullName" AS "customerName",
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'name', oi."itemNameSnapshot",
+                'quantity', oi.quantity,
+                'variant', oi."variantNameSnapshot",
+                'notes', oi."specialNotes"
+              ))
+              FROM order_items oi
+              WHERE oi."orderId" = o.id AND oi."deletedAt" IS NULL
+            ), '[]'::jsonb) AS items
           FROM kitchen_queue kq
           JOIN orders o ON o.id = kq."orderId"
           JOIN bookings b ON b.id = o."bookingId"

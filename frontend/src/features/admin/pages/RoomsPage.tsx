@@ -6,9 +6,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { roomApi } from "@/api/room.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatCurrency, getErrorMessage } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
+import { useAuthStore } from "@/store/authStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RoomStatus = "AVAILABLE" | "RESERVED" | "OCCUPIED" | "CLEANING" | "OUT_OF_SERVICE";
@@ -72,6 +74,11 @@ const getImageUrl = (url?: string | null): string => {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function RoomsPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.rooms.create");
+  const canUpdate = isAdmin || hasPermission("operations.rooms.update");
+  const canDelete = isAdmin || hasPermission("operations.rooms.delete");
 
   // Modal state
   const [isOpen, setIsOpen] = useState(false);
@@ -237,23 +244,25 @@ export default function RoomsPage() {
   return (
     <div className="space-y-6">
       {/* ── Page Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Rooms</h1>
-          <p className="text-sm text-slate-500">Manage SAFNAM room inventory and availability</p>
-        </div>
-        <Button
-          onClick={openCreate}
-          leftIcon={<Plus size={16} />}
-          className="bg-emerald-600 text-white hover:bg-emerald-700"
-        >
-          Add Room
-        </Button>
-      </div>
+      <PageHeader
+        title="Rooms"
+        subtitle="Manage room inventory and availability"
+        actions={
+          canCreate ? (
+            <Button
+              onClick={openCreate}
+              leftIcon={<Plus size={16} />}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Add Room
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* ── Filter Bar ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-sm:w-full max-w-sm">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
@@ -295,15 +304,17 @@ export default function RoomsPage() {
         <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
           <HelpCircle className="h-10 w-10 text-slate-300 mb-2" />
           <p className="text-sm font-semibold text-slate-700">No rooms found</p>
-          <p className="text-xs text-slate-500 mt-1">Add rooms to manage reservations and occupancy.</p>
-          <Button
-            size="sm"
-            className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={openCreate}
-            leftIcon={<Plus size={16} />}
-          >
-            Add Room
-          </Button>
+          <p className="text-xs text-slate-550 mt-1">Add rooms to manage reservations and occupancy.</p>
+          {canCreate && (
+            <Button
+              size="sm"
+              className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={openCreate}
+              leftIcon={<Plus size={16} />}
+            >
+              Add Room
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -350,39 +361,45 @@ export default function RoomsPage() {
                   )}
                 </div>
 
-                {/* Actions */}
+                {/* Actions — only shown when permitted */}
                 <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-end gap-1.5">
-                  <button
-                    onClick={() => openEdit(room)}
-                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                    title="Edit Room"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                  <button
-                    onClick={() =>
-                      statusMutation.mutate({
-                        id: room.id,
-                        status:
-                          room.status === "OUT_OF_SERVICE" ? "AVAILABLE" : "OUT_OF_SERVICE",
-                      })
-                    }
-                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
-                    title={room.status === "OUT_OF_SERVICE" ? "Activate" : "Deactivate"}
-                  >
-                    {room.status === "OUT_OF_SERVICE" ? (
-                      <Power size={13} className="text-emerald-500" />
-                    ) : (
-                      <PowerOff size={13} className="text-amber-500" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(room)}
-                    className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 transition"
-                    title="Delete Room"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {canUpdate && (
+                    <button
+                      onClick={() => openEdit(room)}
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                      title="Edit Room"
+                    >
+                      <Edit2 size={13} />
+                    </button>
+                  )}
+                  {canUpdate && (
+                    <button
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: room.id,
+                          status:
+                            room.status === "OUT_OF_SERVICE" ? "AVAILABLE" : "OUT_OF_SERVICE",
+                        })
+                      }
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                      title={room.status === "OUT_OF_SERVICE" ? "Activate" : "Deactivate"}
+                    >
+                      {room.status === "OUT_OF_SERVICE" ? (
+                        <Power size={13} className="text-emerald-500" />
+                      ) : (
+                        <PowerOff size={13} className="text-amber-500" />
+                      )}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(room)}
+                      className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 transition"
+                      title="Delete Room"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

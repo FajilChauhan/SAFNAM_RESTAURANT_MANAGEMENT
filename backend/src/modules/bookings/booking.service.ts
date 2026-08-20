@@ -400,10 +400,7 @@ export class BookingService extends BaseService {
       throw new ApiError(400, "Only pending or confirmed bookings can be checked in");
     }
 
-    return this.bookingRepository.update(id, {
-      status: BookingStatus.CHECKED_IN,
-      checkedInAt: new Date(),
-    });
+    return this.bookingRepository.checkIn(id);
   }
 
   async checkOut(id: string) {

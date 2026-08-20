@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { operationsApi } from '../../../api/operations.api'
 import { cn } from '../../../utils/cn'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { useAuthStore } from '../../../store/authStore'
 
 // === TYPES ===
 interface Employee {
@@ -86,6 +88,12 @@ const getRoleConfig = (role: string) =>
 // === COMPONENT ===
 const EmployeesPage = () => {
   const queryClient = useQueryClient()
+  const { hasPermission, user } = useAuthStore()
+  const isAdmin = user?.role === "ADMIN"
+  const canCreate = isAdmin || hasPermission("operations.employees.create")
+  const canUpdate = isAdmin || hasPermission("operations.employees.update")
+  const canDelete = isAdmin || hasPermission("operations.employees.delete")
+
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -225,25 +233,25 @@ const EmployeesPage = () => {
       </AnimatePresence>
 
       {/* PAGE HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Create and manage SAFNAM staff accounts
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            reset()
-            setErrorMsg('')
-            setShowAddModal(true)
-          }}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm shadow-emerald-600/20"
-        >
-          <Plus size={18} />
-          Add Employee
-        </button>
-      </div>
+      <PageHeader
+        title="Employees"
+        subtitle="Create and manage staff accounts"
+        actions={
+          canCreate ? (
+            <button
+              onClick={() => {
+                reset()
+                setErrorMsg('')
+                setShowAddModal(true)
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm shadow-emerald-600/20"
+            >
+              <Plus size={18} />
+              Add Employee
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* STATS ROW */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -387,7 +395,6 @@ const EmployeesPage = () => {
                           : 'Never'}
                       </p>
                     </td>
-
                     {/* Actions */}
                     <td className="py-4 px-2">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -399,32 +406,35 @@ const EmployeesPage = () => {
                           className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-lg transition-all cursor-pointer hover:shadow-md">
                           View
                         </button>
-                        <button 
-                          onClick={() => {
-                            setEditingEmployee(emp)
-                            setShowEditModal(true)
-                          }}
-                          className="px-3 py-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 border border-emerald-200 hover:border-emerald-300 rounded-lg transition-all bg-emerald-50 hover:bg-emerald-100 cursor-pointer hover:shadow-md">
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedEmployee(emp)
-                            updateStatusMutation.mutate(emp.id)
-                          }}
-                          disabled={updateStatusMutation.isPending}
-                          className={cn(
-                            'px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed',
-                            emp.status === 'ACTIVE'
-                              ? 'text-red-500 border border-red-200 hover:bg-red-50'
-                              : 'text-green-600 border border-green-200 hover:bg-green-50'
-                          )}
-                        >
-                          {emp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                        </button>
+                        {canUpdate && (
+                          <button 
+                            onClick={() => {
+                              setEditingEmployee(emp)
+                              setShowEditModal(true)
+                            }}
+                            className="px-3 py-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 border border-emerald-200 hover:border-emerald-300 rounded-lg transition-all bg-emerald-50 hover:bg-emerald-100 cursor-pointer hover:shadow-md">
+                            Edit
+                          </button>
+                        )}
+                        {canUpdate && (
+                          <button
+                            onClick={() => {
+                              setSelectedEmployee(emp)
+                              updateStatusMutation.mutate(emp.id)
+                            }}
+                            disabled={updateStatusMutation.isPending}
+                            className={cn(
+                              'px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed',
+                              emp.status === 'ACTIVE'
+                                ? 'text-red-500 border border-red-200 hover:bg-red-50'
+                                : 'text-green-600 border border-green-200 hover:bg-green-50'
+                            )}
+                          >
+                            {emp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
                       </div>
-                    </td>
-                  </tr>
+                    </td>                  </tr>
                 ))}
               </tbody>
             </table>

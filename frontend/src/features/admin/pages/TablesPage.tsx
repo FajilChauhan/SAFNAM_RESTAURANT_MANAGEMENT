@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { floorApi } from "@/api/floor.api";
 import { tableApi } from "@/api/table.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { getErrorMessage } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
+import { useAuthStore } from "@/store/authStore";
 
 type Table = {
   id: string;
@@ -45,6 +47,12 @@ const emptyForm = (defaultFloorId = ""): TableForm => ({
 
 export default function TablesPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.tables.create");
+  const canUpdate = isAdmin || hasPermission("operations.tables.update");
+  const canDelete = isAdmin || hasPermission("operations.tables.delete");
+
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Table | null>(null);
   const [form, setForm] = useState<TableForm>(emptyForm());
@@ -184,15 +192,17 @@ export default function TablesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tables</h1>
-          <p className="text-sm text-slate-500">Manage dining layout and table occupancy status</p>
-        </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
-          Add Table
-        </Button>
-      </div>
+      <PageHeader
+        title="Tables"
+        subtitle="Manage dining layout and table occupancy status"
+        actions={
+          canCreate ? (
+            <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              Add Table
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Filter and Search */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -254,10 +264,12 @@ export default function TablesPage() {
         <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-slate-100 shadow-sm animate-fade-in">
           <HelpCircle className="h-10 w-10 text-slate-300 mb-2" />
           <p className="text-sm font-semibold text-slate-700">No tables found</p>
-          <p className="text-xs text-slate-500 mt-1">Add tables to assign guests and handle occupancy.</p>
-          <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
-            Add Table
-          </Button>
+          <p className="text-xs text-slate-550 mt-1">Add tables to assign guests and handle occupancy.</p>
+          {canCreate && (
+            <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
+              Add Table
+            </Button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden">
@@ -293,36 +305,42 @@ export default function TablesPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEdit(table)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                          title="Edit Table"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button
-                          onClick={() =>
-                            toggleStatusMutation.mutate({
-                              id: table.id,
-                              status: table.status === "OUT_OF_SERVICE" ? "AVAILABLE" : "OUT_OF_SERVICE",
-                            })
-                          }
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                          title={table.status === "OUT_OF_SERVICE" ? "Activate" : "Deactivate"}
-                        >
-                          {table.status === "OUT_OF_SERVICE" ? (
-                            <Power size={13} className="text-emerald-500" />
-                          ) : (
-                            <PowerOff size={13} className="text-amber-500" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(table)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-red-650 hover:bg-red-50 hover:text-red-750 transition"
-                          title="Delete Table"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => openEdit(table)}
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                            title="Edit Table"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                        )}
+                        {canUpdate && (
+                          <button
+                            onClick={() =>
+                              toggleStatusMutation.mutate({
+                                id: table.id,
+                                status: table.status === "OUT_OF_SERVICE" ? "AVAILABLE" : "OUT_OF_SERVICE",
+                              })
+                            }
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                            title={table.status === "OUT_OF_SERVICE" ? "Activate" : "Deactivate"}
+                          >
+                            {table.status === "OUT_OF_SERVICE" ? (
+                              <Power size={13} className="text-emerald-500" />
+                            ) : (
+                              <PowerOff size={13} className="text-amber-500" />
+                            )}
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(table)}
+                            className="p-1.5 rounded-lg border border-slate-200 text-red-650 hover:bg-red-50 hover:text-red-750 transition"
+                            title="Delete Table"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

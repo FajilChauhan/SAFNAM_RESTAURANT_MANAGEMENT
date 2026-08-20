@@ -28,6 +28,8 @@ import { roomApi } from "@/api/room.api";
 import { cn } from "@/utils/cn";
 import { formatCurrency, getErrorMessage } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { useAuthStore } from "@/store/authStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +128,12 @@ function formatDiscount(offer: AdminOffer) {
 
 export default function OffersPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.offers.create");
+  const canUpdate = isAdmin || hasPermission("operations.offers.update");
+  const canDelete = isAdmin || hasPermission("operations.offers.delete");
+
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [filterType, setFilterType] = useState<"ALL" | AdminOffer["applicableTo"]>("ALL");
@@ -313,23 +321,23 @@ export default function OffersPage() {
     <div className="space-y-6">
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Offers</h1>
-          <p className="mt-0.5 text-sm text-gray-500">
-            Create and manage SAFNAM Restaurant promotional offers
-          </p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5
-            text-sm font-semibold text-white shadow-sm transition-all
-            hover:bg-emerald-700 hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <Plus size={18} />
-          Create Offer
-        </button>
-      </div>
+      <PageHeader
+        title="Offers"
+        subtitle="Create and manage promotional offers"
+        actions={
+          canCreate ? (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5
+                text-sm font-semibold text-white shadow-sm transition-all
+                hover:bg-emerald-700 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Plus size={18} />
+              Create Offer
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
@@ -436,15 +444,16 @@ export default function OffersPage() {
           <div className="py-16 text-center">
             <Gift size={48} className="mx-auto mb-3 text-gray-200" />
             <p className="font-medium text-gray-400">No offers found</p>
-            <p className="mt-1 text-sm text-gray-300">Create your first promotional offer to get started</p>
-            <button
-              onClick={openCreate}
-              className="mx-auto mt-4 flex items-center gap-2 rounded-xl bg-emerald-600
-                px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-all"
-            >
-              <Plus size={16} />
-              Create Offer
-            </button>
+            {canCreate && (
+              <button
+                onClick={openCreate}
+                className="mx-auto mt-4 flex items-center gap-2 rounded-xl bg-emerald-600
+                  px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-all"
+              >
+                <Plus size={16} />
+                Create Offer
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -453,6 +462,8 @@ export default function OffersPage() {
                 key={offer.id}
                 offer={offer}
                 copiedCode={copiedCode}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
                 onEdit={openEdit}
                 onStatus={(id, status) => statusMutation.mutate({ id, status })}
                 onDelete={(id) => window.confirm(`Delete offer "${offer.title}"?`) && deleteMutation.mutate(id)}
@@ -852,6 +863,8 @@ export default function OffersPage() {
 function OfferCard({
   offer,
   copiedCode,
+  canUpdate,
+  canDelete,
   onEdit,
   onStatus,
   onDelete,
@@ -859,6 +872,8 @@ function OfferCard({
 }: {
   offer: AdminOffer;
   copiedCode: string | null;
+  canUpdate: boolean;
+  canDelete: boolean;
   onEdit: (offer: AdminOffer) => void;
   onStatus: (id: string, status: AdminOffer["status"]) => void;
   onDelete: (id: string) => void;
@@ -968,34 +983,42 @@ function OfferCard({
         {/* Scope pills */}
         <ScopePills offer={offer} />
 
-        {/* Actions */}
-        <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-4">
-          <button
-            onClick={() => onStatus(offer.id, offer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-all",
-              offer.status === "ACTIVE"
-                ? "border-amber-200 text-amber-600 hover:bg-amber-50"
-                : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
+        {/* Actions — only shown when permitted */}
+        {(canUpdate || canDelete) && (
+          <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-4">
+            {canUpdate && (
+              <button
+                onClick={() => onStatus(offer.id, offer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-all",
+                  offer.status === "ACTIVE"
+                    ? "border-amber-200 text-amber-600 hover:bg-amber-50"
+                    : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
+                )}
+              >
+                {offer.status === "ACTIVE" ? "Deactivate" : "Activate"}
+              </button>
             )}
-          >
-            {offer.status === "ACTIVE" ? "Deactivate" : "Activate"}
-          </button>
-          <button
-            onClick={() => onEdit(offer)}
-            className="rounded-xl border border-gray-200 p-2 text-gray-500
-              transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(offer.id)}
-            className="rounded-xl border border-gray-200 p-2 text-gray-500
-              transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+            {canUpdate && (
+              <button
+                onClick={() => onEdit(offer)}
+                className="rounded-xl border border-gray-200 p-2 text-gray-500
+                  transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+              >
+                <Edit2 size={14} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => onDelete(offer.id)}
+                className="rounded-xl border border-gray-200 p-2 text-gray-500
+                  transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );

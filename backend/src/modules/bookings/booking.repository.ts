@@ -1,4 +1,5 @@
-import type { BookingStatus, BookingType, Prisma } from "@prisma/client";
+import { BookingStatus, BookingType, RoomStatus, TableStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
 import { buildFilterWhere } from "../../utils/filter.js";
@@ -53,6 +54,45 @@ export class BookingRepository {
       data: bookings,
       meta: createPaginationMeta(total, options),
     };
+  }
+
+  checkIn(id: string) {
+    return prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({ where: { id } });
+
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      const checkedInAt = new Date();
+
+      await tx.booking.update({
+        where: { id },
+        data: {
+          status: BookingStatus.CHECKED_IN,
+          checkedInAt,
+        },
+      });
+
+      if (booking.bookingType === BookingType.TABLE && booking.tableId) {
+        await tx.diningTable.update({
+          where: { id: booking.tableId },
+          data: { status: TableStatus.OCCUPIED },
+        });
+      }
+
+      if (booking.bookingType === BookingType.ROOM && booking.roomId) {
+        await tx.room.update({
+          where: { id: booking.roomId },
+          data: { status: RoomStatus.OCCUPIED },
+        });
+      }
+
+      return tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: this.defaultInclude(),
+      });
+    });
   }
 
   update(id: string, data: Prisma.BookingUncheckedUpdateInput) {

@@ -28,6 +28,8 @@ export type CreateMenuItemDto = {
   status?: MenuEntityStatus;
   isTodaySpecial?: boolean;
   isAvailable?: boolean;
+  availableQuantity?: number;
+  soldQuantity?: number;
 };
 
 export type UpdateMenuItemDto = Partial<CreateMenuItemDto>;

@@ -7,7 +7,7 @@ export class InvoiceRepository {
       where: { id: bookingId },
       include: {
         room: true,
-        orders: { where: { status: "SERVED", deletedAt: null }, include: { items: true } },
+        orders: { where: { status: { not: "CANCELLED" }, deletedAt: null }, include: { items: true } },
         invoice: { include: { items: { where: { deletedAt: null } } } },
         appliedOffer: true,
       },

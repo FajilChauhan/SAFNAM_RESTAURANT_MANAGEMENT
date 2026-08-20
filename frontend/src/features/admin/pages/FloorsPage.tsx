@@ -3,9 +3,11 @@ import { Plus, Search, Edit2, Trash2, Power, PowerOff, Upload, X, HelpCircle, Lo
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { floorApi } from "@/api/floor.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { getErrorMessage } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
+import { useAuthStore } from "@/store/authStore";
 
 type Floor = {
   id: string;
@@ -41,6 +43,13 @@ const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1517248135467-4c7edcad
 
 export default function FloorsPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  // ADMIN bypasses all permission checks; others use explicit permission keys
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.floors.create");
+  const canUpdate = isAdmin || hasPermission("operations.floors.update");
+  const canDelete = isAdmin || hasPermission("operations.floors.delete");
+
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Floor | null>(null);
   const [form, setForm] = useState<FloorForm>(emptyForm);
@@ -212,15 +221,17 @@ export default function FloorsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Floors</h1>
-          <p className="text-sm text-slate-500">Manage restaurant floors and layout settings</p>
-        </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
-          Add Floor
-        </Button>
-      </div>
+      <PageHeader
+        title="Floors"
+        subtitle="Manage restaurant floors and layout settings"
+        actions={
+          canCreate ? (
+            <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              Add Floor
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Filter and Search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -255,9 +266,11 @@ export default function FloorsPage() {
           <HelpCircle className="h-10 w-10 text-slate-300 mb-2" />
           <p className="text-sm font-semibold text-slate-700">No floors found</p>
           <p className="text-xs text-slate-500 mt-1">Add floors to structure your dining layout.</p>
-          <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
-            Add Floor
-          </Button>
+          {canCreate && (
+            <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
+              Add Floor
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -297,35 +310,41 @@ export default function FloorsPage() {
                   <span className="text-xs text-slate-500 font-medium">
                     Dining Tables: <strong className="text-slate-800">{floor._count?.tables ?? 0}</strong>
                   </span>
-                  
-                  {/* Actions */}
+
+                  {/* Actions — only shown when permitted */}
                   <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => openEdit(floor)}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                      title="Edit Floor"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={() =>
-                        toggleStatusMutation.mutate({
-                          id: floor.id,
-                          status: floor.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                        })
-                      }
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                      title={floor.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                    >
-                      {floor.status === "ACTIVE" ? <PowerOff size={13} className="text-amber-500" /> : <Power size={13} className="text-emerald-500" />}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(floor)}
-                      className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 hover:text-red-750 transition"
-                      title="Delete Floor"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {canUpdate && (
+                      <button
+                        onClick={() => openEdit(floor)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                        title="Edit Floor"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    )}
+                    {canUpdate && (
+                      <button
+                        onClick={() =>
+                          toggleStatusMutation.mutate({
+                            id: floor.id,
+                            status: floor.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                          })
+                        }
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                        title={floor.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                      >
+                        {floor.status === "ACTIVE" ? <PowerOff size={13} className="text-amber-500" /> : <Power size={13} className="text-emerald-500" />}
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(floor)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-red-600 hover:bg-red-50 hover:text-red-750 transition"
+                        title="Delete Floor"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

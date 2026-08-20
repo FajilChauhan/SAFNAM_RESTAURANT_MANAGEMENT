@@ -466,6 +466,8 @@ model MenuItem {
   status             MenuEntityStatus   @default(ACTIVE)
   isTodaySpecial     Boolean            @default(false)
   isAvailable        Boolean            @default(true)
+  availableQuantity  Int                @default(0)
+  soldQuantity       Int                @default(0)
   deletedAt          DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -483,6 +485,7 @@ model MenuItem {
   @@index([status])
   @@index([isTodaySpecial])
   @@index([isAvailable])
+  @@index([availableQuantity])
   @@index([deletedAt])
   @@map("menu_items")
 }

@@ -3,10 +3,12 @@ import { Plus, Search, Edit2, Trash2, Power, PowerOff, Upload, X, HelpCircle, Lo
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { menuApi } from "@/api/menu.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { getErrorMessage, formatCurrency } from "@/utils/formatters";
 import { toast } from "@/utils/toast";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80";
 
@@ -23,6 +25,8 @@ type MenuItem = {
   status?: "ACTIVE" | "INACTIVE";
   isTodaySpecial?: boolean;
   isAvailable?: boolean;
+  availableQuantity?: number;
+  soldQuantity?: number;
   category?: { id?: string; name: string };
 };
 
@@ -45,6 +49,8 @@ type MenuItemForm = {
   status: "ACTIVE" | "INACTIVE";
   isTodaySpecial: boolean;
   isAvailable: boolean;
+  availableQuantity: string;
+  soldQuantity: string;
 };
 
 const emptyForm = (defaultCategoryId = ""): MenuItemForm => ({
@@ -60,10 +66,19 @@ const emptyForm = (defaultCategoryId = ""): MenuItemForm => ({
   status: "ACTIVE",
   isTodaySpecial: false,
   isAvailable: true,
+  availableQuantity: "0",
+  soldQuantity: "0",
 });
 
 export default function MenuItemsPage() {
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const { hasPermission, user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+  const canCreate = isAdmin || hasPermission("operations.menu.create");
+  const canUpdate = isAdmin || hasPermission("operations.menu.update");
+  const canDelete = isAdmin || hasPermission("operations.menu.delete");
+
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [form, setForm] = useState<MenuItemForm>(emptyForm());
@@ -134,6 +149,8 @@ export default function MenuItemsPage() {
       payload.append("status", form.status);
       payload.append("isTodaySpecial", String(form.isTodaySpecial));
       payload.append("isAvailable", String(form.isAvailable));
+      payload.append("availableQuantity", String(Number(form.availableQuantity || 0)));
+      payload.append("soldQuantity", String(Number(form.soldQuantity || 0)));
 
       if (form.imageFile) {
         payload.append("image", form.imageFile);
@@ -258,6 +275,8 @@ export default function MenuItemsPage() {
       status: item.status ?? "ACTIVE",
       isTodaySpecial: Boolean(item.isTodaySpecial),
       isAvailable: item.isAvailable ?? true,
+      availableQuantity: String(item.availableQuantity ?? 0),
+      soldQuantity: String(item.soldQuantity ?? 0),
     });
     setPreviewUrl(item.imageUrl ? getImageUrl(item.imageUrl) : null);
     setIsImageDeleted(false);
@@ -284,20 +303,24 @@ export default function MenuItemsPage() {
     form.categoryId &&
     form.name.trim().length >= 2 &&
     Number(form.price) >= 0 &&
-    Number(form.preparationTimeMin) > 0;
+    Number(form.preparationTimeMin) > 0 &&
+    Number(form.availableQuantity) >= 0 &&
+    Number(form.soldQuantity) >= 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Menu Items</h1>
-          <p className="text-sm text-slate-500">Create and manage the SAFNAM food menu</p>
-        </div>
-        <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
-          Add Menu Item
-        </Button>
-      </div>
+      <PageHeader
+        title="Menu Items"
+        subtitle="Create and manage food menu items"
+        actions={
+          canCreate ? (
+            <Button onClick={openCreate} leftIcon={<Plus size={16} />} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              Add Menu Item
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Warnings */}
       {activeCategories.length === 0 && !categoriesQuery.isLoading && (
@@ -305,11 +328,13 @@ export default function MenuItemsPage() {
           <p className="text-sm text-amber-800 font-medium">
             ⚠️ No active categories available. You must create an active category before you can add menu items.
           </p>
-          <Link to="/admin/categories" className="inline-flex shrink-0">
-            <Button size="sm" variant="outline">
-              Manage Categories
-            </Button>
-          </Link>
+          {canCreate && (
+            <Link to={location.pathname.startsWith("/manager") ? "/manager/menu/categories" : "/admin/categories"} className="inline-flex shrink-0">
+              <Button size="sm" variant="outline">
+                Manage Categories
+              </Button>
+            </Link>
+          )}
         </div>
       )}
 
@@ -397,10 +422,12 @@ export default function MenuItemsPage() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <HelpCircle className="h-10 w-10 text-slate-300 mb-2" />
             <p className="text-sm font-semibold text-slate-700">No menu items found</p>
-            <p className="text-xs text-slate-500 mt-1">Get started by creating real foods for SAFNAM.</p>
-            <Button size="sm" className="mt-4" onClick={openCreate} leftIcon={<Plus size={16} />}>
-              Add Menu Item
-            </Button>
+            <p className="text-xs text-slate-550 mt-1">Get started by creating real foods for SAFNAM.</p>
+            {canCreate && (
+              <Button size="sm" className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={openCreate} leftIcon={<Plus size={16} />}>
+                Add Menu Item
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -412,6 +439,7 @@ export default function MenuItemsPage() {
                   <th className="px-6 py-3.5 font-semibold">Category</th>
                   <th className="px-6 py-3.5 font-semibold">Type</th>
                   <th className="px-6 py-3.5 font-semibold">Price</th>
+                  <th className="px-6 py-3.5 font-semibold">Stock</th>
                   <th className="px-6 py-3.5 font-semibold">Availability</th>
                   <th className="px-6 py-3.5 font-semibold">Special</th>
                   <th className="px-6 py-3.5 font-semibold">Status</th>
@@ -473,6 +501,10 @@ export default function MenuItemsPage() {
                       {formatCurrency(Number(item.price))}
                     </td>
                     <td className="px-6 py-4">
+                      <div className="text-sm font-semibold text-slate-800">{item.availableQuantity ?? 0} left</div>
+                      <div className="text-xs text-slate-400">{item.soldQuantity ?? 0} sold</div>
+                    </td>
+                    <td className="px-6 py-4">
                       <StatusChip status={item.isAvailable ? "AVAILABLE" : "UNAVAILABLE"} />
                     </td>
                     <td className="px-6 py-4">
@@ -489,44 +521,52 @@ export default function MenuItemsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                          title="Edit Item"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() =>
-                            availabilityMutation.mutate({
-                              id: item.id,
-                              value: !item.isAvailable,
-                            })
-                          }
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                          title={item.isAvailable ? "Set Unavailable" : "Set Available"}
-                        >
-                          {item.isAvailable ? <PowerOff size={14} className="text-amber-500" /> : <Power size={14} className="text-emerald-500" />}
-                        </button>
-                        <button
-                          onClick={() =>
-                            toggleStatusMutation.mutate({
-                              id: item.id,
-                              status: item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                            })
-                          }
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
-                          title={item.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                        >
-                          {item.status === "ACTIVE" ? <PowerOff size={14} className="text-red-400" /> : <Power size={14} className="text-emerald-500" />}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-red-650 hover:bg-red-50 hover:text-red-700 transition"
-                          title="Delete Item"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => openEdit(item)}
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                            title="Edit Item"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        )}
+                        {canUpdate && (
+                          <button
+                            onClick={() =>
+                              availabilityMutation.mutate({
+                                id: item.id,
+                                value: !item.isAvailable,
+                              })
+                            }
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                            title={item.isAvailable ? "Set Unavailable" : "Set Available"}
+                          >
+                            {item.isAvailable ? <PowerOff size={14} className="text-amber-500" /> : <Power size={14} className="text-emerald-500" />}
+                          </button>
+                        )}
+                        {canUpdate && (
+                          <button
+                            onClick={() =>
+                              toggleStatusMutation.mutate({
+                                id: item.id,
+                                status: item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                              })
+                            }
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                            title={item.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                          >
+                            {item.status === "ACTIVE" ? <PowerOff size={14} className="text-red-400" /> : <Power size={14} className="text-emerald-500" />}
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="p-1.5 rounded-lg border border-slate-200 text-red-650 hover:bg-red-50 hover:text-red-700 transition"
+                            title="Delete Item"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -630,6 +670,36 @@ export default function MenuItemsPage() {
                     className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">
+                    Available Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.availableQuantity}
+                    onChange={(e) => setForm({ ...form, availableQuantity: e.target.value })}
+                    className="w-full h-10 rounded-xl border border-emerald-100 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">
+                    Sold Quantity
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.soldQuantity}
+                    onChange={(e) => setForm({ ...form, soldQuantity: e.target.value })}
+                    className="w-full h-10 rounded-xl border border-emerald-100 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <p className="col-span-2 text-xs text-emerald-700">
+                  Orders reserve stock on confirmation. Stock cannot go below zero.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

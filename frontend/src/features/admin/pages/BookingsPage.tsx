@@ -22,7 +22,10 @@ import { floorApi } from "@/api/floor.api";
 import { roomApi } from "@/api/room.api";
 import { invoiceApi } from "@/api/invoice.api";
 import { paymentApi } from "@/api/payment.api";
+import { menuApi } from "@/api/menu.api";
+import { orderApi } from "@/api/order.api";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { cn } from "@/utils/cn";
 import { formatCurrency, getErrorMessage } from "@/utils/formatters";
@@ -31,6 +34,28 @@ import { toast as toastNotification } from "@/utils/toast";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ActiveTab = "TABLE" | "ROOM";
 type ScopeTab = "ACTIVE" | "ALL";
+
+type BookingFoodMenuItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: string | number;
+  imageUrl?: string | null;
+  isAvailable?: boolean;
+  availableQuantity?: number;
+  soldQuantity?: number;
+  category?: { name?: string | null } | null;
+};
+
+type BookingCart = {
+  id: string;
+  items?: Array<{
+    id: string;
+    quantity: number;
+    lineTotalSnapshot: string | number;
+    menuItem?: { name?: string | null } | null;
+  }>;
+};
 
 const ACTIVE_STATUSES: BookingStatus[] = ["PENDING", "CONFIRMED", "CHECKED_IN"];
 
@@ -75,6 +100,13 @@ function getBookingDisplayTotal(booking: Booking) {
   }
 
   return 0;
+}
+
+function resolveImageUrl(imageUrl?: string | null) {
+  if (!imageUrl) return "";
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  return `${baseUrl}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
 }
 
 // Helper to mask Aadhaar: XXXX-XXXX-1234
@@ -214,27 +246,27 @@ export default function BookingsPage() {
       </AnimatePresence>
 
       {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage table and room reservations for SAFNAM Restaurant</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={refresh}
-            className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition"
-          >
-            <RefreshCw size={15} className={bookingsQuery.isFetching ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-          <Button
-            leftIcon={<Plus size={16} />}
-            onClick={() => setShowCreate(true)}
-          >
-            {activeTab === "TABLE" ? "Add Table Booking" : "Add Room Booking"}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Bookings"
+        subtitle="Manage table and room reservations"
+        actions={
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={refresh}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition"
+            >
+              <RefreshCw size={15} className={bookingsQuery.isFetching ? "animate-spin" : ""} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <Button
+              leftIcon={<Plus size={16} />}
+              onClick={() => setShowCreate(true)}
+            >
+              {activeTab === "TABLE" ? "Add Table Booking" : "Add Room Booking"}
+            </Button>
+          </div>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -879,6 +911,55 @@ function ViewBookingModal({
     onError: (err) => setPayError(getErrorMessage(err)),
   });
 
+  const [showOrderFood, setShowOrderFood] = useState(false);
+  const [foodQuantities, setFoodQuantities] = useState<Record<string, number>>({});
+
+  const menuItemsQuery = useQuery({
+    queryKey: ["admin", "booking-food-menu"],
+    enabled: showOrderFood && booking?.status === "CHECKED_IN",
+    queryFn: async () => {
+      const { data } = await menuApi.getItems({ available: true });
+      return (data.data?.items ?? []) as BookingFoodMenuItem[];
+    },
+  });
+
+  const cartQuery = useQuery({
+    queryKey: ["admin", "booking-cart", bookingId],
+    enabled: showOrderFood && booking?.status === "CHECKED_IN",
+    queryFn: async () => {
+      const { data } = await orderApi.getCart(bookingId);
+      return data.data?.cart as BookingCart | null;
+    },
+  });
+
+  const addFoodMutation = useMutation({
+    mutationFn: ({ menuItemId, quantity }: { menuItemId: string; quantity: number }) =>
+      orderApi.addToCart({ bookingId, menuItemId, quantity }),
+    onSuccess: async () => {
+      toastNotification.success("Food item added to this booking cart.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "booking-cart", bookingId] });
+    },
+    onError: (err) => toastNotification.error(getErrorMessage(err)),
+  });
+
+  const confirmFoodOrderMutation = useMutation({
+    mutationFn: () => orderApi.confirmOrder(bookingId, "MANAGER"),
+    onSuccess: async () => {
+      toastNotification.success("Food order sent to kitchen.");
+      setShowOrderFood(false);
+      setFoodQuantities({});
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "booking-details", bookingId] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "booking-cart", bookingId] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "booking-food-menu"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] }),
+      ]);
+      refetch();
+      refresh();
+    },
+    onError: (err) => toastNotification.error(getErrorMessage(err)),
+  });
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -1083,6 +1164,168 @@ function ViewBookingModal({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Checked-in Food Ordering */}
+            {booking.status === "CHECKED_IN" && (
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 font-sans">
+                      Food Ordering
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Add food directly to this checked-in {isTable ? "table" : "room"} booking.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    leftIcon={<Utensils size={14} />}
+                    onClick={() => setShowOrderFood((value) => !value)}
+                  >
+                    {showOrderFood ? "Hide Menu" : "Order Food"}
+                  </Button>
+                </div>
+
+                {showOrderFood && (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-4">
+                    {cartQuery.data?.items && cartQuery.data.items.length > 0 && (
+                      <div className="rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">Current booking cart</p>
+                            <p className="text-xs text-slate-500">
+                              {cartQuery.data.items.length} item{cartQuery.data.items.length === 1 ? "" : "s"} ready to send to kitchen
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold"
+                            loading={confirmFoodOrderMutation.isPending}
+                            onClick={() => confirmFoodOrderMutation.mutate()}
+                          >
+                            Send Order
+                          </Button>
+                        </div>
+                        <div className="mt-3 space-y-1">
+                          {cartQuery.data.items.map((item) => (
+                            <div key={item.id} className="flex justify-between text-xs text-slate-600">
+                              <span>{item.menuItem?.name ?? "Menu item"} x{item.quantity}</span>
+                              <span className="font-semibold text-slate-800">
+                                {formatCurrency(Number(item.lineTotalSnapshot))}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {menuItemsQuery.isLoading ? (
+                      <div className="flex items-center justify-center gap-2 rounded-xl bg-white p-5 text-sm font-semibold text-slate-700">
+                        <Loader2 size={16} className="animate-spin text-emerald-600" />
+                        Loading available foods...
+                      </div>
+                    ) : menuItemsQuery.isError ? (
+                      <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                        Failed to load menu items. Please try again.
+                      </div>
+                    ) : !menuItemsQuery.data || menuItemsQuery.data.length === 0 ? (
+                      <div className="rounded-xl border border-slate-100 bg-white p-5 text-center">
+                        <Utensils className="mx-auto text-slate-300" size={28} />
+                        <p className="mt-2 text-sm font-semibold text-slate-700">No available food items</p>
+                        <p className="text-xs text-slate-500">Available menu items will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+                        {menuItemsQuery.data.map((item) => {
+                          const stock = Number(item.availableQuantity ?? 0);
+                          const price = Number(item.price ?? 0);
+                          const image = resolveImageUrl(item.imageUrl);
+                          const quantity = foodQuantities[item.id] ?? 1;
+                          const canOrder = item.isAvailable !== false && stock > 0;
+
+                          return (
+                            <div key={item.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                              <div className="flex gap-3">
+                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                                  {image ? (
+                                    <img src={image} alt={item.name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <Utensils size={20} className="text-slate-300" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="font-semibold text-slate-800">{item.name}</p>
+                                      <p className="line-clamp-1 text-xs text-slate-500">
+                                        {item.category?.name ?? item.description ?? "SAFNAM menu item"}
+                                      </p>
+                                    </div>
+                                    <p className="shrink-0 text-sm font-bold text-emerald-700">
+                                      {formatCurrency(price)}
+                                    </p>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-[11px]">
+                                      <span className={cn(
+                                        "rounded-full px-2 py-0.5 font-bold",
+                                        canOrder ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                                      )}>
+                                        {canOrder ? `${stock} in stock` : "Out of stock"}
+                                      </span>
+                                      <span className="text-slate-500">{Number(item.soldQuantity ?? 0)} sold</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                        <button
+                                          type="button"
+                                          disabled={!canOrder || quantity <= 1}
+                                          onClick={() => setFoodQuantities((prev) => ({
+                                            ...prev,
+                                            [item.id]: Math.max(1, quantity - 1),
+                                          }))}
+                                          className="h-8 w-8 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="w-8 text-center text-sm font-bold text-slate-800">{quantity}</span>
+                                        <button
+                                          type="button"
+                                          disabled={!canOrder || quantity >= stock}
+                                          onClick={() => setFoodQuantities((prev) => ({
+                                            ...prev,
+                                            [item.id]: Math.min(stock, quantity + 1),
+                                          }))}
+                                          className="h-8 w-8 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        disabled={!canOrder || addFoodMutation.isPending}
+                                        loading={addFoodMutation.isPending && addFoodMutation.variables?.menuItemId === item.id}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                        onClick={() => addFoodMutation.mutate({ menuItemId: item.id, quantity })}
+                                      >
+                                        Add
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

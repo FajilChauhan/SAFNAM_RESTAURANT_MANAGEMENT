@@ -14,3 +14,4 @@ export * from "./Tooltip";
 export * from "./Tabs";
 export * from "./Select";
 export * from "./PageHeader";
+export * from "./StatsGrid";

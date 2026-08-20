@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Search, Eye, UserX, UserCheck, RefreshCw, ChevronLeft, ChevronRight, Loader2, Mail, Phone, Calendar, ShoppingBag, Shield, CheckCircle, AlertCircle, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type AdminCustomer, type UserStatus } from "@/api/admin.api";
-import { Button, StatusChip } from "@/components/ui";
+import { Button, StatusChip, PageHeader } from "@/components/ui";
 import { formatCurrency, formatDate, getErrorMessage } from "@/utils/formatters";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
@@ -135,21 +135,19 @@ export default function CustomersPage() {
       </AnimatePresence>
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Customer profiles, visits, loyalty and activity overview
-          </p>
-        </div>
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:border-gray-300 bg-white text-gray-700 font-semibold text-sm rounded-xl transition-all hover:bg-gray-50 shadow-sm"
-        >
-          <RefreshCw size={16} className={cn((customersQuery.isFetching || statsQuery.isFetching) && "animate-spin")} />
-          Refresh
-        </button>
-      </div>
+      <PageHeader
+        title="Customers"
+        subtitle="Customer profiles, visits, loyalty and activity overview"
+        actions={
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:border-gray-300 bg-white text-gray-700 font-semibold text-sm rounded-xl transition-all hover:bg-gray-50 shadow-sm"
+          >
+            <RefreshCw size={16} className={cn((customersQuery.isFetching || statsQuery.isFetching) && "animate-spin")} />
+            Refresh
+          </button>
+        }
+      />
 
       {/* Customer Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

@@ -185,6 +185,8 @@ export interface KitchenOrder extends Order {
   startedAt?: string;
   readyAt?: string;
   servedAt?: string;
+  priority?: string;
+  items?: Array<{ name: string; quantity: number; variant?: string; notes?: string }>;
 }
 
 export interface CustomerDashboard extends DashboardMeta {

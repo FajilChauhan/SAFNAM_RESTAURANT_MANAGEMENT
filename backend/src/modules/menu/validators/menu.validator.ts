@@ -51,6 +51,8 @@ export const createMenuItemSchema = z.object({
   status: z.nativeEnum(MenuEntityStatus).optional(),
   isTodaySpecial: booleanCoerce,
   isAvailable: booleanCoerce,
+  availableQuantity: z.coerce.number().int().min(0).optional(),
+  soldQuantity: z.coerce.number().int().min(0).optional(),
 });
 
 export const updateMenuItemSchema = createMenuItemSchema

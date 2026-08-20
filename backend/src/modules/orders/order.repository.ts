@@ -1,7 +1,9 @@
-import type { CartItem, OrderStatus, Prisma } from "@prisma/client";
-import { CartStatus, KitchenQueueStatus } from "@prisma/client";
+import type { CartItem, OrderStatus } from "@prisma/client";
+import { CartStatus, DiscountType, InvoiceStatus, KitchenQueueStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../database/prisma.js";
+import { ERROR_CODES } from "../../constants/errorCodes.js";
 import type { QueryOptions } from "../../types/pagination.types.js";
+import { ApiError } from "../../utils/ApiError.js";
 import { buildFilterWhere } from "../../utils/filter.js";
 import { createPaginationMeta } from "../../utils/pagination.js";
 import { buildSearchWhere } from "../../utils/search.js";
@@ -15,6 +17,8 @@ export class OrderRepository {
       include: {
         table: true,
         room: true,
+        invoice: true,
+        appliedOffer: true,
       },
     });
   }
@@ -152,6 +156,44 @@ export class OrderRepository {
     }>;
   }) {
     return prisma.$transaction(async (tx) => {
+      const cart = await tx.cart.findUnique({
+        where: { id: input.cartId },
+        include: {
+          booking: { include: { invoice: true, appliedOffer: true } },
+          items: {
+            where: { deletedAt: null },
+            include: { menuItem: true },
+          },
+        },
+      });
+
+      if (!cart || cart.status !== CartStatus.ACTIVE || cart.bookingId !== input.bookingId) {
+        throw new ApiError(409, "Cart is no longer active", ERROR_CODES.RESOURCE_CONFLICT);
+      }
+
+      for (const item of cart.items) {
+        const decrement = await tx.menuItem.updateMany({
+          where: {
+            id: item.menuItemId,
+            deletedAt: null,
+            isAvailable: true,
+            availableQuantity: { gte: item.quantity },
+          },
+          data: {
+            availableQuantity: { decrement: item.quantity },
+            soldQuantity: { increment: item.quantity },
+          },
+        });
+
+        if (decrement.count !== 1) {
+          throw new ApiError(
+            409,
+            `${item.menuItem.name} is no longer available in the requested quantity`,
+            ERROR_CODES.RESOURCE_CONFLICT,
+          );
+        }
+      }
+
       const order = await tx.order.create({
         data: {
           orderNumber: input.orderNumber,
@@ -204,8 +246,84 @@ export class OrderRepository {
         data: { status: CartStatus.CONFIRMED, updatedBy: input.orderedById },
       });
 
+      if (cart.booking.invoice) {
+        await tx.invoiceItem.create({
+          data: {
+            invoiceId: cart.booking.invoice.id,
+            orderId: order.id,
+            type: "FOOD",
+            description: `Food order ${order.orderNumber}`,
+            quantity: 1,
+            unitPrice: input.totalSnapshot,
+            totalAmount: input.totalSnapshot,
+            isManualCharge: false,
+            createdBy: input.orderedById,
+          },
+        });
+        await this.recalculateInvoiceTotals(tx, cart.booking.invoice.id, input.orderedById);
+      }
+
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: this.orderInclude() });
     });
+  }
+
+  private async recalculateInvoiceTotals(tx: Prisma.TransactionClient, invoiceId: string, actorId: string) {
+    const invoice = await tx.invoice.findUniqueOrThrow({
+      where: { id: invoiceId },
+      include: {
+        booking: { include: { appliedOffer: true } },
+        items: { where: { deletedAt: null } },
+      },
+    });
+
+    const lockedStatuses: InvoiceStatus[] = [InvoiceStatus.PAID, InvoiceStatus.LOCKED, InvoiceStatus.CANCELLED];
+    if (lockedStatuses.includes(invoice.status)) {
+      throw new ApiError(400, "Invoice cannot be modified after payment or cancellation");
+    }
+
+    const foodTotal = this.sumInvoiceItems(invoice.items.filter((item) => item.type === "FOOD"));
+    const roomTotal = this.sumInvoiceItems(invoice.items.filter((item) => item.type === "ROOM"));
+    const extraCharges = this.sumInvoiceItems(invoice.items.filter((item) => !["FOOD", "ROOM"].includes(item.type)));
+    const subTotal = foodTotal.plus(roomTotal).plus(extraCharges);
+    const discountType =
+      invoice.booking.discountSource === "OFFER"
+        ? invoice.booking.appliedOffer?.discountType
+        : invoice.booking.discountSource === "GAME"
+          ? DiscountType.PERCENTAGE
+          : null;
+    const discountValue = invoice.booking.discountPercentage;
+    const discountTotal = discountType === DiscountType.PERCENTAGE ? subTotal.mul(discountValue).div(100) : invoice.booking.discountAmount;
+    const taxableAmount = Prisma.Decimal.max(subTotal.minus(discountTotal), new Prisma.Decimal(0));
+    const cgstAmount = taxableAmount.mul(invoice.cgstRate).div(100);
+    const sgstAmount = taxableAmount.mul(invoice.sgstRate).div(100);
+    const igstAmount = taxableAmount.mul(invoice.igstRate).div(100);
+    const taxTotal = cgstAmount.plus(sgstAmount).plus(igstAmount);
+    const grandTotal = taxableAmount.plus(taxTotal);
+
+    await tx.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        foodTotal,
+        roomTotal,
+        extraCharges,
+        discountSource: invoice.booking.discountSource,
+        discountType,
+        discountValue,
+        discountTotal,
+        cgstAmount,
+        sgstAmount,
+        igstAmount,
+        taxTotal,
+        grandTotal,
+        balanceAmount: grandTotal.minus(invoice.paidAmount),
+        status: invoice.status === InvoiceStatus.DRAFT ? InvoiceStatus.GENERATED : invoice.status,
+        updatedBy: actorId,
+      },
+    });
+  }
+
+  private sumInvoiceItems(items: Array<{ totalAmount: Prisma.Decimal }>) {
+    return items.reduce((total, item) => total.plus(item.totalAmount), new Prisma.Decimal(0));
   }
 
   findOrderById(orderId: string) {
@@ -283,9 +401,36 @@ export class OrderRepository {
 
   private orderInclude() {
     return {
-      booking: true,
+      booking: {
+        include: {
+          room: true,
+          table: {
+            include: {
+              floor: true,
+            },
+          },
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phoneNumber: true,
+            },
+          },
+          invoice: true,
+        },
+      },
       orderedBy: { select: { id: true, fullName: true, role: true } },
-      items: { include: { addOns: true } },
+      items: {
+        include: {
+          addOns: {
+            include: {
+              addOn: true,
+            },
+          },
+          menuItem: true,
+        },
+      },
       kitchenQueue: true,
     } satisfies Prisma.OrderInclude;
   }

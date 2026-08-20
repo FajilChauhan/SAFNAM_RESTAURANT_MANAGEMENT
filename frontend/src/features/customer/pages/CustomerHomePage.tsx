@@ -24,6 +24,9 @@ type MenuItem = {
   description?: string | null;
   imageUrl?: string | null;
   price?: string | number;
+  availableQuantity?: number;
+  soldQuantity?: number;
+  isAvailable?: boolean;
   category?: { name?: string };
   isTodaySpecial?: boolean;
 };
@@ -291,6 +294,10 @@ function Section({ eyebrow, title, children }: { eyebrow: string; title: string;
 }
 
 function FoodCard({ item, special = false }: { item: MenuItem; special?: boolean }) {
+  const availableQuantity = item.availableQuantity ?? 0;
+  const isOutOfStock = item.isAvailable === false || availableQuantity <= 0;
+  const isLowStock = !isOutOfStock && availableQuantity <= 5;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-48 w-full object-cover" /> : <div className="grid h-48 place-items-center bg-emerald-50 text-emerald-700"><UtensilsCrossed className="h-8 w-8" /></div>}
@@ -298,9 +305,20 @@ function FoodCard({ item, special = false }: { item: MenuItem; special?: boolean
         {special ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Special</span> : null}
         <h3 className="mt-3 text-lg font-bold text-gray-900">{item.name}</h3>
         <p className="mt-2 line-clamp-2 text-sm text-gray-600">{item.description ?? "Description not available."}</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className={isOutOfStock ? "rounded-full bg-red-50 px-2.5 py-1 text-red-700" : isLowStock ? "rounded-full bg-amber-50 px-2.5 py-1 text-amber-700" : "rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700"}>
+            {isOutOfStock ? "Out of stock" : isLowStock ? `Only ${availableQuantity} left` : `${availableQuantity} left`}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{item.soldQuantity ?? 0} sold</span>
+        </div>
         <div className="mt-4 flex items-center justify-between">
           <span className="font-bold text-emerald-700">{formatPrice(item.price)}</span>
-          <Link to="/customer/menu" className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">View Menu</Link>
+          <Link
+            to="/customer/menu"
+            className={isOutOfStock ? "pointer-events-none rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-500" : "rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"}
+          >
+            {isOutOfStock ? "Unavailable" : "View Menu"}
+          </Link>
         </div>
       </div>
     </div>
