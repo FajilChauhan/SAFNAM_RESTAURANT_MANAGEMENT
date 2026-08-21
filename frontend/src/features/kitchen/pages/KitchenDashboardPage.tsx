@@ -101,7 +101,7 @@ export default function KitchenDashboardPage() {
                     key={order.id}
                     order={order}
                     onAction={() => {
-                      const nextStatus = getNextOrderStatus(order.status);
+                      const nextStatus = getNextOrderStatus(order.status ?? "");
                       if (nextStatus && order.orderId) {
                         updateStatusMutation.mutate({ orderId: order.orderId, nextStatus });
                       }
@@ -190,14 +190,14 @@ function OrderCard({
         </div>
       )}
 
-      {getNextOrderStatus(order.status) && (
+      {getNextOrderStatus(order.status ?? "") && (
         <button
           type="button"
           onClick={onAction}
           disabled={isPending}
           className="mt-4 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2.5 text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
         >
-          {isPending ? "Updating..." : nextAction(order.status)}
+          {isPending ? "Updating..." : nextAction(order.status ?? "")}
         </button>
       )}
     </motion.article>
