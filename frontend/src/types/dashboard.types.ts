@@ -118,6 +118,33 @@ export interface Customer {
   tableNumber?: string;
   roomNumber?: string;
   checkedInAt?: string;
+  type?: "TABLE" | "ROOM";
+  bookingId?: string;
+  customerName?: string;
+  resourceNumber?: string;
+  occupiedAt?: string;
+  expectedCheckoutAt?: string;
+  durationMinutes?: number;
+  paymentStatus?: string;
+}
+
+export interface TableActiveOccupancy {
+  bookingId: string;
+  bookingNumber: string;
+  customer: {
+    id: string;
+    name: string;
+    phoneNumber?: string;
+  };
+  occupiedAt: string;
+  bookingStartTime?: string;
+  bookingEndTime?: string;
+  expectedReleaseAt?: string;
+  durationMinutes: number;
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  hasActiveOrder: boolean;
+  activeOrderCount: number;
 }
 
 export interface Table {
@@ -125,7 +152,31 @@ export interface Table {
   tableNumber: string;
   status: string;
   capacity?: number;
+  shape?: string;
+  floorId?: string;
   floor?: { name?: string };
+  activeOccupancy?: TableActiveOccupancy | null;
+}
+
+export interface RoomActiveOccupancy {
+  bookingId: string;
+  bookingNumber: string;
+  guest: {
+    id: string;
+    name: string;
+    phoneNumber?: string;
+  };
+  checkedInAt: string;
+  expectedCheckoutAt?: string;
+  stayDuration?: {
+    days: number;
+    hours: number;
+  };
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  totalGuests?: number;
+  hasActiveOrder: boolean;
+  activeOrderCount: number;
 }
 
 export interface Room {
@@ -134,6 +185,9 @@ export interface Room {
   roomType?: string;
   status: string;
   capacity?: number;
+  pricePerDay?: number;
+  imageUrl?: string | null;
+  activeOccupancy?: RoomActiveOccupancy | null;
 }
 
 export interface Payment {
@@ -177,7 +231,13 @@ export interface TopCategory {
 export interface KitchenOrder extends Order {
   orderId?: string;
   orderNumber?: string;
+  bookingId?: string;
+  bookingNumber?: string;
+  bookingType?: "TABLE" | "ROOM";
+  orderSource?: "TABLE" | "ROOM" | "WALK_IN";
+  tableId?: string;
   tableNumber?: string;
+  roomId?: string;
   roomNumber?: string;
   customerName?: string;
   queuedAt?: string;
@@ -264,6 +324,7 @@ export interface KitchenDashboard extends DashboardMeta {
   preparingOrders: KitchenOrder[];
   readyOrders: KitchenOrder[];
   servedOrders: KitchenOrder[];
+  kitchenHistory: KitchenOrder[];
   kitchenQueue: KitchenOrder[];
   priorityOrders: KitchenOrder[];
   recentlyServed: KitchenOrder[];

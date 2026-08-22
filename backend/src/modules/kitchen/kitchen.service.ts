@@ -9,7 +9,7 @@ const TRANSITIONS: Record<KitchenQueueStatus, KitchenQueueStatus[]> = {
   PENDING: ["ACCEPTED", "CANCELLED"],
   ACCEPTED: ["PREPARING", "CANCELLED"],
   PREPARING: ["READY", "CANCELLED"],
-  READY: ["SERVED"],
+  READY: ["SERVED", "CANCELLED"],
   SERVED: [],
   CANCELLED: [],
 };

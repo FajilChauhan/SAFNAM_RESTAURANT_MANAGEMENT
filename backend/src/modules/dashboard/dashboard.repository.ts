@@ -433,7 +433,20 @@ export class DashboardRepository {
     return this.first(
       await prisma.$queryRaw<DashboardRawRow[]>`
         WITH queue AS (
-          SELECT kq.*, o."orderNumber", o.status AS "orderStatus", o."confirmedAt", b."bookingNumber", t."tableNumber", r."roomNumber", u."fullName" AS "customerName",
+          SELECT kq.*, o."orderNumber", o.status AS "orderStatus", o."confirmedAt",
+            b.id AS "bookingId",
+            b."bookingNumber",
+            b."bookingType",
+            CASE
+              WHEN b."bookingType" = 'ROOM' THEN 'ROOM'
+              WHEN b."bookingType" = 'TABLE' THEN 'TABLE'
+              ELSE 'WALK_IN'
+            END AS "orderSource",
+            t.id AS "tableId",
+            t."tableNumber",
+            r.id AS "roomId",
+            r."roomNumber",
+            u."fullName" AS "customerName",
             COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
                 'name', oi."itemNameSnapshot",
@@ -458,6 +471,8 @@ export class DashboardRepository {
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q."startedAt" NULLS LAST, q."queuedAt") FROM queue q WHERE q.status = 'PREPARING'), '[]'::jsonb) AS "preparingOrders",
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q."readyAt" DESC NULLS LAST) FROM queue q WHERE q.status = 'READY'), '[]'::jsonb) AS "readyOrders",
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q."servedAt" DESC NULLS LAST) FROM queue q WHERE q.status = 'SERVED' AND q."servedAt" >= CURRENT_DATE AND q."servedAt" < CURRENT_DATE + INTERVAL '1 day'), '[]'::jsonb) AS "servedOrders",
+          COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY COALESCE(q."servedAt", q."updatedAt", q."queuedAt") DESC)
+           FROM (SELECT * FROM queue WHERE status IN ('SERVED', 'CANCELLED') ORDER BY COALESCE("servedAt", "updatedAt", "queuedAt") DESC LIMIT ${query.historyLimit}) q), '[]'::jsonb) AS "kitchenHistory",
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q.priority DESC, q."queuedAt") FROM queue q WHERE q.priority IN ('HIGH', 'VIP') AND q.status IN ('PENDING', 'ACCEPTED', 'PREPARING', 'READY')), '[]'::jsonb) AS "priorityOrders",
           COALESCE((SELECT jsonb_agg(to_jsonb(q) ORDER BY q.priority DESC, q."queuedAt") FROM (SELECT * FROM queue WHERE status IN ('PENDING', 'ACCEPTED', 'PREPARING', 'READY') ORDER BY priority DESC, "queuedAt" LIMIT ${query.listLimit}) q), '[]'::jsonb) AS "kitchenQueue",
           COALESCE((SELECT AVG(EXTRACT(EPOCH FROM (q."readyAt" - q."startedAt")) / 60) FROM queue q WHERE q."startedAt" IS NOT NULL AND q."readyAt" IS NOT NULL), 0) AS "averagePreparationTime",

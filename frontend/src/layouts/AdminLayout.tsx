@@ -135,8 +135,10 @@ export default function AdminLayout() {
   const notificationCount = notificationsQuery.data?.length ?? 0;
 
   const isAdmin = user?.role === "ADMIN";
+  const isKitchen = user?.role === "KITCHEN";
   const userPermissions = useMemo(() => user?.permissions ?? [], [user]);
   const prefix = user?.role === "ADMIN" ? "/admin" : user?.role === "MANAGER" ? "/manager" : user?.role === "KITCHEN" ? "/kitchen" : "/reception";
+  const kitchenSidebarPermissions = useMemo(() => new Set(["operations.orders.view"]), []);
 
   // ── Dynamic sidebar ────────────────────────────────────────────────────────
   // ADMIN: bypass permission filtering — show every group.
@@ -150,6 +152,7 @@ export default function AdminLayout() {
           .filter((item) => {
             if (isAdmin) return true; // Admin always sees everything
             if (item.permission === null) return true; // Dashboard always visible
+            if (isKitchen && !kitchenSidebarPermissions.has(item.permission)) return false;
             return userPermissions.includes(item.permission);
           })
           .map((item) => ({
@@ -158,7 +161,7 @@ export default function AdminLayout() {
           })),
       }))
       .filter((group) => group.items.length > 0);
-  }, [isAdmin, userPermissions, prefix]);
+  }, [isAdmin, isKitchen, kitchenSidebarPermissions, userPermissions, prefix]);
 
   const SidebarContent = (
     <>
@@ -210,7 +213,7 @@ export default function AdminLayout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    end={item.to === prefix || item.to === "/admin" || item.to === "/manager"}
+                    end={item.to === prefix || item.to === "/admin" || item.to === "/manager" || item.to === "/kitchen"}
                     title={collapsed ? item.label : undefined}
                     onClick={() => setMobileSidebarOpen(false)}
                     className={({ isActive }) =>

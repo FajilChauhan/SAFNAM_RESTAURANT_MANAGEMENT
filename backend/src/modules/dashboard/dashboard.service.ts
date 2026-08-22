@@ -103,6 +103,7 @@ export class DashboardService {
       preparingOrders: row.preparingOrders ?? [],
       readyOrders: row.readyOrders ?? [],
       servedOrders: row.servedOrders ?? [],
+      kitchenHistory: row.kitchenHistory ?? [],
       kitchenQueue: row.kitchenQueue ?? [],
       priorityOrders: row.priorityOrders ?? [],
       recentlyServed: row.servedOrders ?? [],
