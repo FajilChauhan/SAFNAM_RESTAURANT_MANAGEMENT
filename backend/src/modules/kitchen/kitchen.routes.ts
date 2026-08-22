@@ -17,13 +17,38 @@ kitchenRouter.get(
   authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
   kitchenController.summary,
 );
+kitchenRouter.get(
+  "/dashboard",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.dashboard,
+);
 kitchenRouter.patch(
   "/orders/:orderId/priority",
   authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.KITCHEN),
   kitchenController.updatePriority,
 );
-kitchenRouter.patch("/orders/:orderId/accept", authorize(UserRole.KITCHEN), kitchenController.accept);
-kitchenRouter.patch("/orders/:orderId/reject", authorize(UserRole.KITCHEN), kitchenController.reject);
-kitchenRouter.patch("/orders/:orderId/preparing", authorize(UserRole.KITCHEN), kitchenController.startPreparing);
-kitchenRouter.patch("/orders/:orderId/ready", authorize(UserRole.KITCHEN), kitchenController.ready);
-kitchenRouter.patch("/orders/:orderId/served", authorize(UserRole.KITCHEN), kitchenController.served);
+kitchenRouter.patch(
+  "/orders/:orderId/accept",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.accept,
+);
+kitchenRouter.patch(
+  "/orders/:orderId/reject",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.reject,
+);
+kitchenRouter.patch(
+  "/orders/:orderId/preparing",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.startPreparing,
+);
+kitchenRouter.patch(
+  "/orders/:orderId/ready",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.ready,
+);
+kitchenRouter.patch(
+  "/orders/:orderId/served",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.KITCHEN),
+  kitchenController.served,
+);

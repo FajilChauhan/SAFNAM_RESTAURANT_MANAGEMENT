@@ -434,7 +434,8 @@ const EmployeesPage = () => {
                           </button>
                         )}
                       </div>
-                    </td>                  </tr>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

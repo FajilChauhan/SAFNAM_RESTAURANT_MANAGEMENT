@@ -102,6 +102,25 @@ class BookingController extends BaseController {
     this.ok(res, "Available rooms fetched successfully", { rooms });
   });
 
+  tableAvailability = asyncHandler(async (req, res) => {
+    const tableId = uuidSchema.parse(req.params.tableId);
+    const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD").parse(req.query.date);
+    const availability = await bookingService.getTableSlotAvailability(tableId, date);
+
+    this.ok(res, "Table availability fetched successfully", { availability });
+  });
+
+  roomAvailability = asyncHandler(async (req, res) => {
+    const roomId = uuidSchema.parse(req.params.roomId);
+    const { checkIn, checkOut } = z.object({
+      checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "checkIn must be YYYY-MM-DD"),
+      checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "checkOut must be YYYY-MM-DD"),
+    }).parse(req.query);
+    const availability = await bookingService.getRoomDateAvailability(roomId, checkIn, checkOut);
+
+    this.ok(res, "Room availability fetched successfully", { availability });
+  });
+
   activeReward = asyncHandler(async (req, res) => {
     const customerId = uuidSchema.parse(req.params.customerId);
     const reward = await prisma.gameReward.findFirst({

@@ -123,9 +123,9 @@ export default function AdminLayout() {
     retry: false,
   });
 
-  // Normalise pathname: /manager/xxx → /admin/xxx for title lookup
+  // Normalise pathname: /manager/xxx or /kitchen/xxx → /admin/xxx for title lookup
   const normalizedPathname = useMemo(
-    () => location.pathname.replace(/^\/(manager|reception)/, "/admin"),
+    () => location.pathname.replace(/^\/(manager|reception|kitchen)/, "/admin"),
     [location.pathname],
   );
   const pageTitle = useMemo(() => pageTitles[normalizedPathname] ?? "Dashboard", [normalizedPathname]);
@@ -136,7 +136,7 @@ export default function AdminLayout() {
 
   const isAdmin = user?.role === "ADMIN";
   const userPermissions = useMemo(() => user?.permissions ?? [], [user]);
-  const prefix = user?.role === "ADMIN" ? "/admin" : user?.role === "MANAGER" ? "/manager" : "/reception";
+  const prefix = user?.role === "ADMIN" ? "/admin" : user?.role === "MANAGER" ? "/manager" : user?.role === "KITCHEN" ? "/kitchen" : "/reception";
 
   // ── Dynamic sidebar ────────────────────────────────────────────────────────
   // ADMIN: bypass permission filtering — show every group.
@@ -175,7 +175,7 @@ export default function AdminLayout() {
           <div className="min-w-0">
             <div className="truncate font-display text-sm font-bold text-white">{restaurantName}</div>
             <div className="text-[10px] text-slate-400">
-              {user?.role === "ADMIN" ? "Admin Panel" : user?.role === "MANAGER" ? "Manager Panel" : "Reception Panel"}
+              {user?.role === "ADMIN" ? "Admin Panel" : user?.role === "MANAGER" ? "Manager Panel" : user?.role === "KITCHEN" ? "Kitchen Panel" : "Reception Panel"}
             </div>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function AdminLayout() {
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-white">{user?.name ?? "User"}</div>
               <div className="text-xs text-gray-400">
-                {user?.role === "ADMIN" ? "Administrator" : user?.role === "MANAGER" ? "Manager" : "Receptionist"}
+                {user?.role === "ADMIN" ? "Administrator" : user?.role === "MANAGER" ? "Manager" : user?.role === "KITCHEN" ? "Kitchen Staff" : "Receptionist"}
               </div>
             </div>
           )}

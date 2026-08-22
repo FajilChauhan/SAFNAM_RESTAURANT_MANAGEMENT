@@ -1,3 +1,5 @@
+import { dashboardService } from "../dashboard/dashboard.service.js";
+import { dashboardQuerySchema } from "../dashboard/dashboard.validator.js";
 import { BaseController } from "../../lib/BaseController.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uuidSchema } from "../../utils/validator.js";
@@ -13,6 +15,12 @@ class KitchenController extends BaseController {
   summary = asyncHandler(async (_req, res) => {
     const summary = await kitchenService.getSummary();
     this.ok(res, "Kitchen dashboard summary fetched successfully", { summary });
+  });
+
+  dashboard = asyncHandler(async (req, res) => {
+    const query = dashboardQuerySchema.parse(req.query);
+    const dashboard = await dashboardService.kitchen(query);
+    this.ok(res, "Kitchen dashboard fetched successfully", { dashboard });
   });
 
   updatePriority = asyncHandler(async (req, res) => {

@@ -30,6 +30,8 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { cn } from "@/utils/cn";
 import { formatCurrency, getErrorMessage } from "@/utils/formatters";
 import { toast as toastNotification } from "@/utils/toast";
+import { TableAvailabilityPanel } from "@/features/bookings/TableAvailabilityPanel";
+import { RoomAvailabilityPanel } from "@/features/bookings/RoomAvailabilityPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ActiveTab = "TABLE" | "ROOM";
@@ -189,6 +191,9 @@ export default function BookingsPage() {
       if (viewBookingId) {
         queryClient.invalidateQueries({ queryKey: ["admin", "booking-details", viewBookingId] });
       }
+      // Refresh availability panels so booked/occupied slots update in real time
+      queryClient.invalidateQueries({ queryKey: ["booking-slot-avail"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-room-avail"] });
       const labels = { cancel: "Booking cancelled", "check-in": "Checked in", "check-out": "Checked out" };
       showToast("success", labels[action] + " successfully.");
     },
@@ -1687,6 +1692,8 @@ function CreateBookingModal({
     { fullName: "", aadhaarNumber: "" },
     { fullName: "", aadhaarNumber: "" },
   ]);
+  // Track room availability from RoomAvailabilityPanel to block form submission
+  const [roomAvailable, setRoomAvailable] = useState<boolean | null>(null);
 
   const set = <K extends keyof CreateBookingForm>(key: K, val: CreateBookingForm[K]) =>
     setForm((p) => ({ ...p, [key]: val }));
@@ -1943,7 +1950,12 @@ function CreateBookingModal({
         guests: form.bookingType === "ROOM" ? guestsList : undefined,
       });
     },
-    onSuccess: () => onSuccess(form.bookingType),
+    onSuccess: () => {
+      // Refresh availability panels so newly-created booking appears as blocked
+      queryClient.invalidateQueries({ queryKey: ["booking-slot-avail"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-room-avail"] });
+      onSuccess(form.bookingType);
+    },
     onError: (err) => setFormError(getErrorMessage(err)),
   });
 
@@ -2307,6 +2319,32 @@ function CreateBookingModal({
             )}
           </FormField>
 
+          {/* ── Table Availability Panel ─────────────────────────────────── */}
+          {/* Shows after a table is selected — slot-level view with click-to-fill */}
+          {isTable && form.resourceId && form.date && (
+            <TableAvailabilityPanel
+              tableId={form.resourceId}
+              date={form.date}
+              selectedStartTime={form.startTime}
+              selectedEndTime={form.endTime}
+              onSlotSelect={(startTime, endTime) => {
+                set("startTime", startTime);
+                set("endTime", endTime);
+              }}
+            />
+          )}
+
+          {/* ── Room Availability Panel ──────────────────────────────────── */}
+          {/* Shows after a room + check-in/check-out dates are set */}
+          {!isTable && form.resourceId && form.date && form.endDate && (
+            <RoomAvailabilityPanel
+              roomId={form.resourceId}
+              checkIn={form.date}
+              checkOut={form.endDate}
+              onAvailabilityChange={(available) => setRoomAvailable(available)}
+            />
+          )}
+
           {/* Discount Section (Offers and Game Rewards with Single-Discount enforcement) */}
           {form.customerId && (
             <div className="border-t border-slate-100 pt-3 space-y-3.5">
@@ -2417,7 +2455,9 @@ function CreateBookingModal({
               createMutation.isPending ||
               !form.resourceId ||
               !form.customerId ||
-              Boolean(selectedAvailability && !selectedAvailability.available)
+              Boolean(selectedAvailability && !selectedAvailability.available) ||
+              // Block submission if room availability panel explicitly says unavailable
+              (!isTable && form.resourceId && form.date && form.endDate ? roomAvailable === false : false)
             }
             onClick={() => createMutation.mutate()}
             leftIcon={<Plus size={16} />}

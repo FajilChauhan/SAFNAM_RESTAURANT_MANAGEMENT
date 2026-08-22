@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { CalendarDays, CreditCard, LogOut, Users, BedDouble, ArrowRight, Clock } from "lucide-react";
 import { dashboardApi } from "@/api/dashboard.api";
-import type { ReceptionDashboard, Table } from "@/types/dashboard.types";
+import type { Table } from "@/types/dashboard.types";
 import { DashboardError, DashboardSkeleton, StatusPill, formatMoney } from "@/features/dashboard/DashboardShared";
 import { cn } from "@/utils/cn";
 
@@ -17,11 +17,11 @@ export default function ReceptionDashboardPage() {
     refetchInterval: 15000,
   });
 
-  if (query.isLoading) return <DashboardSkeleton columns={4} />;
-  if (query.isError || !query.data) return <DashboardError onRetry={() => void query.refetch()} />;
+  const dashboard = query.data;
+  const tableBuckets = useMemo(() => bucketTables(dashboard?.tableStatus ?? []), [dashboard?.tableStatus]);
 
-  const dashboard: ReceptionDashboard = query.data;
-  const tableBuckets = useMemo(() => bucketTables(dashboard.tableStatus), [dashboard.tableStatus]);
+  if (query.isLoading) return <DashboardSkeleton columns={4} />;
+  if (query.isError || !dashboard) return <DashboardError onRetry={() => void query.refetch()} />;
 
   return (
     <motion.div variants={container} initial="hidden" animate="visible" className="space-y-6">

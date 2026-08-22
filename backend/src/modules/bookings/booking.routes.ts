@@ -38,6 +38,16 @@ bookingRouter.get(
   bookingController.activeReward,
 );
 bookingRouter.get(
+  "/tables/:tableId/availability",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION),
+  bookingController.tableAvailability,
+);
+bookingRouter.get(
+  "/rooms/:roomId/availability",
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION),
+  bookingController.roomAvailability,
+);
+bookingRouter.get(
   "/:id",
   authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION, UserRole.CUSTOMER),
   bookingController.get,

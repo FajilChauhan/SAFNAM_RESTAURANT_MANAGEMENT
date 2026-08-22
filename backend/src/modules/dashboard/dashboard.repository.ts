@@ -190,13 +190,184 @@ export class DashboardRepository {
   async reception(query: DashboardQueryDto) {
     return this.first(
       await prisma.$queryRaw<DashboardRawRow[]>`
-        WITH current_customers AS (
-          SELECT b.id, b."bookingNumber", u."fullName", u."phoneNumber", b."bookingType", t."tableNumber", r."roomNumber", b."checkedInAt"
+        WITH active_bookings AS (
+          SELECT
+            b.id,
+            b."bookingNumber",
+            b."bookingType",
+            b."tableId",
+            b."roomId",
+            b."bookingDate",
+            b."startTime",
+            b."endTime",
+            b."endAt",
+            b.members,
+            b."checkedInAt",
+            u.id AS "customerId",
+            u."fullName",
+            u."phoneNumber",
+            i.id AS "invoiceId",
+            i.status AS "invoiceStatus",
+            (
+              SELECT p.status
+              FROM payments p
+              WHERE p."bookingId" = b.id
+                AND p."deletedAt" IS NULL
+              ORDER BY p."paidAt" DESC
+              LIMIT 1
+            ) AS "latestPaymentStatus",
+            (
+              SELECT COUNT(*)
+              FROM orders o
+              WHERE o."bookingId" = b.id
+                AND o."deletedAt" IS NULL
+                AND o.status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY')
+            ) AS "activeOrderCount"
           FROM bookings b
           JOIN users u ON u.id = b."customerId"
-          LEFT JOIN tables t ON t.id = b."tableId"
-          LEFT JOIN rooms r ON r.id = b."roomId"
-          WHERE b."deletedAt" IS NULL AND b.status = 'CHECKED_IN'
+          LEFT JOIN invoices i ON i."bookingId" = b.id AND i."deletedAt" IS NULL
+          LEFT JOIN checkout_sessions cs ON cs."bookingId" = b.id AND cs."deletedAt" IS NULL
+          WHERE b."deletedAt" IS NULL
+            AND b.status = 'CHECKED_IN'
+            AND b."checkedInAt" IS NOT NULL
+            AND b."checkedOutAt" IS NULL
+            AND cs.id IS NULL
+        ),
+        active_table_bookings AS (
+          SELECT DISTINCT ON (ab."tableId") ab.*
+          FROM active_bookings ab
+          WHERE ab."bookingType" = 'TABLE' AND ab."tableId" IS NOT NULL
+          ORDER BY ab."tableId", ab."checkedInAt" DESC
+        ),
+        active_room_bookings AS (
+          SELECT DISTINCT ON (ab."roomId") ab.*
+          FROM active_bookings ab
+          WHERE ab."bookingType" = 'ROOM' AND ab."roomId" IS NOT NULL
+          ORDER BY ab."roomId", ab."checkedInAt" DESC
+        ),
+        table_status AS (
+          SELECT
+            t.id,
+            t."tableNumber",
+            t.capacity,
+            t.shape,
+            t."floorId",
+            CASE WHEN atb.id IS NOT NULL THEN 'OCCUPIED' ELSE t.status::text END AS status,
+            CASE WHEN atb.id IS NULL THEN NULL ELSE jsonb_build_object(
+              'bookingId', atb.id,
+              'bookingNumber', atb."bookingNumber",
+              'customer', jsonb_build_object(
+                'id', atb."customerId",
+                'name', atb."fullName",
+                'phoneNumber', atb."phoneNumber"
+              ),
+              'occupiedAt', atb."checkedInAt",
+              'bookingStartTime', atb."startTime",
+              'bookingEndTime', atb."endTime",
+              'expectedReleaseAt', (atb."bookingDate"::timestamp + atb."endTime"::time),
+              'durationMinutes', GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - atb."checkedInAt")) / 60))::int,
+              'paymentStatus', COALESCE(
+                CASE
+                  WHEN atb."invoiceStatus" = 'PAID' THEN 'PAID'
+                  WHEN atb."invoiceStatus" = 'PARTIALLY_PAID' THEN 'PARTIAL'
+                  WHEN atb."invoiceStatus" IS NOT NULL THEN 'PENDING'
+                  ELSE atb."latestPaymentStatus"::text
+                END,
+                'PENDING'
+              ),
+              'invoiceStatus', atb."invoiceStatus",
+              'hasActiveOrder', atb."activeOrderCount" > 0,
+              'activeOrderCount', atb."activeOrderCount"
+            ) END AS "activeOccupancy"
+          FROM tables t
+          LEFT JOIN active_table_bookings atb ON atb."tableId" = t.id
+          WHERE t."deletedAt" IS NULL
+        ),
+        room_status AS (
+          SELECT
+            r.id,
+            r."roomNumber",
+            r."roomType",
+            r.capacity,
+            r."pricePerDay",
+            r."imageUrl",
+            CASE WHEN arb.id IS NOT NULL THEN 'OCCUPIED' ELSE r.status::text END AS status,
+            CASE WHEN arb.id IS NULL THEN NULL ELSE jsonb_build_object(
+              'bookingId', arb.id,
+              'bookingNumber', arb."bookingNumber",
+              'guest', jsonb_build_object(
+                'id', arb."customerId",
+                'name', arb."fullName",
+                'phoneNumber', arb."phoneNumber"
+              ),
+              'checkedInAt', arb."checkedInAt",
+              'expectedCheckoutAt', arb."endAt",
+              'stayDuration', jsonb_build_object(
+                'days', GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - arb."checkedInAt")) / 86400))::int,
+                'hours', MOD(GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - arb."checkedInAt")) / 3600))::int, 24)
+              ),
+              'paymentStatus', COALESCE(
+                CASE
+                  WHEN arb."invoiceStatus" = 'PAID' THEN 'PAID'
+                  WHEN arb."invoiceStatus" = 'PARTIALLY_PAID' THEN 'PARTIAL'
+                  WHEN arb."invoiceStatus" IS NOT NULL THEN 'PENDING'
+                  ELSE arb."latestPaymentStatus"::text
+                END,
+                'PENDING'
+              ),
+              'invoiceStatus', arb."invoiceStatus",
+              'totalGuests', arb.members,
+              'hasActiveOrder', arb."activeOrderCount" > 0,
+              'activeOrderCount', arb."activeOrderCount"
+            ) END AS "activeOccupancy"
+          FROM rooms r
+          LEFT JOIN active_room_bookings arb ON arb."roomId" = r.id
+          WHERE r."deletedAt" IS NULL
+        ),
+        current_customers AS (
+          SELECT
+            'TABLE' AS type,
+            atb.id AS "bookingId",
+            atb."bookingNumber",
+            atb."fullName" AS "customerName",
+            atb."phoneNumber",
+            t."tableNumber" AS "resourceNumber",
+            atb."checkedInAt" AS "occupiedAt",
+            NULL::timestamp AS "expectedCheckoutAt",
+            GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - atb."checkedInAt")) / 60))::int AS "durationMinutes",
+            COALESCE(
+              CASE
+                WHEN atb."invoiceStatus" = 'PAID' THEN 'PAID'
+                WHEN atb."invoiceStatus" = 'PARTIALLY_PAID' THEN 'PARTIAL'
+                WHEN atb."invoiceStatus" IS NOT NULL THEN 'PENDING'
+                ELSE atb."latestPaymentStatus"::text
+              END,
+              'PENDING'
+            ) AS "paymentStatus"
+          FROM active_table_bookings atb
+          JOIN tables t ON t.id = atb."tableId"
+          UNION ALL
+          SELECT
+            'ROOM' AS type,
+            arb.id AS "bookingId",
+            arb."bookingNumber",
+            arb."fullName" AS "customerName",
+            arb."phoneNumber",
+            r."roomNumber" AS "resourceNumber",
+            arb."checkedInAt" AS "occupiedAt",
+            arb."endAt" AS "expectedCheckoutAt",
+            GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - arb."checkedInAt")) / 60))::int AS "durationMinutes",
+            COALESCE(
+              CASE
+                WHEN arb."invoiceStatus" = 'PAID' THEN 'PAID'
+                WHEN arb."invoiceStatus" = 'PARTIALLY_PAID' THEN 'PARTIAL'
+                WHEN arb."invoiceStatus" IS NOT NULL THEN 'PENDING'
+                ELSE arb."latestPaymentStatus"::text
+              END,
+              'PENDING'
+            ) AS "paymentStatus"
+          FROM active_room_bookings arb
+          JOIN rooms r ON r.id = arb."roomId"
         )
         SELECT
           COALESCE((SELECT jsonb_agg(jsonb_build_object(
@@ -226,19 +397,21 @@ export class DashboardRepository {
           COALESCE((SELECT jsonb_agg(jsonb_build_object('id', cs.id, 'checkoutNumber', cs."checkoutNumber", 'customerName', u."fullName", 'invoiceTotal', cs."invoiceTotal", 'checkedOutAt', cs."checkedOutAt") ORDER BY cs."checkedOutAt" DESC)
            FROM checkout_sessions cs JOIN users u ON u.id = cs."customerId"
            WHERE cs."deletedAt" IS NULL AND cs."checkedOutAt" >= CURRENT_DATE AND cs."checkedOutAt" < CURRENT_DATE + INTERVAL '1 day'), '[]'::jsonb) AS "todaysCheckouts",
-          COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t."tableNumber") FROM tables t WHERE t."deletedAt" IS NULL AND t.status = 'OCCUPIED'), '[]'::jsonb) AS "occupiedTables",
-          COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t."tableNumber") FROM tables t WHERE t."deletedAt" IS NULL AND t.status = 'AVAILABLE'), '[]'::jsonb) AS "availableTables",
-          COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t."tableNumber") FROM tables t WHERE t."deletedAt" IS NULL AND t.status = 'RESERVED'), '[]'::jsonb) AS "reservedTables",
-          COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t."tableNumber") FROM tables t WHERE t."deletedAt" IS NULL AND t.status = 'CLEANING'), '[]'::jsonb) AS "cleaningTables",
-          COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r."roomNumber") FROM rooms r WHERE r."deletedAt" IS NULL AND r.status = 'OCCUPIED'), '[]'::jsonb) AS "occupiedRooms",
-          COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r."roomNumber") FROM rooms r WHERE r."deletedAt" IS NULL AND r.status = 'AVAILABLE'), '[]'::jsonb) AS "availableRooms",
+          COALESCE((SELECT jsonb_agg(to_jsonb(ts) ORDER BY ts."tableNumber") FROM table_status ts), '[]'::jsonb) AS "tableStatus",
+          COALESCE((SELECT jsonb_agg(to_jsonb(rs) ORDER BY rs."roomNumber") FROM room_status rs), '[]'::jsonb) AS "roomStatus",
+          COALESCE((SELECT jsonb_agg(to_jsonb(ts) ORDER BY ts."tableNumber") FROM table_status ts WHERE ts.status = 'OCCUPIED'), '[]'::jsonb) AS "occupiedTables",
+          COALESCE((SELECT jsonb_agg(to_jsonb(ts) ORDER BY ts."tableNumber") FROM table_status ts WHERE ts.status = 'AVAILABLE'), '[]'::jsonb) AS "availableTables",
+          COALESCE((SELECT jsonb_agg(to_jsonb(ts) ORDER BY ts."tableNumber") FROM table_status ts WHERE ts.status = 'RESERVED'), '[]'::jsonb) AS "reservedTables",
+          COALESCE((SELECT jsonb_agg(to_jsonb(ts) ORDER BY ts."tableNumber") FROM table_status ts WHERE ts.status = 'CLEANING'), '[]'::jsonb) AS "cleaningTables",
+          COALESCE((SELECT jsonb_agg(to_jsonb(rs) ORDER BY rs."roomNumber") FROM room_status rs WHERE rs.status = 'OCCUPIED'), '[]'::jsonb) AS "occupiedRooms",
+          COALESCE((SELECT jsonb_agg(to_jsonb(rs) ORDER BY rs."roomNumber") FROM room_status rs WHERE rs.status = 'AVAILABLE'), '[]'::jsonb) AS "availableRooms",
           COALESCE((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'paymentNumber', p."paymentNumber", 'amount', p.amount, 'method', p.method, 'status', p.status, 'paidAt', p."paidAt") ORDER BY p."paidAt" DESC)
            FROM (SELECT * FROM payments WHERE "deletedAt" IS NULL AND status IN ('PENDING', 'PROCESSING') ORDER BY "paidAt" DESC LIMIT ${query.listLimit}) p), '[]'::jsonb) AS "pendingPayments",
           COALESCE((SELECT jsonb_agg(jsonb_build_object('id', i.id, 'invoiceNumber', i."invoiceNumber", 'customerName', u."fullName", 'grandTotal', i."grandTotal", 'balanceAmount', i."balanceAmount", 'status', i.status) ORDER BY i."generatedAt" DESC NULLS LAST)
            FROM (SELECT * FROM invoices WHERE "deletedAt" IS NULL AND status IN ('GENERATED', 'PARTIALLY_PAID') AND "balanceAmount" > 0 ORDER BY "generatedAt" DESC NULLS LAST LIMIT ${query.listLimit}) i
            JOIN bookings b ON b.id = i."bookingId"
            JOIN users u ON u.id = b."customerId"), '[]'::jsonb) AS "pendingInvoices",
-          COALESCE((SELECT jsonb_agg(to_jsonb(cc) ORDER BY cc."checkedInAt" DESC) FROM current_customers cc), '[]'::jsonb) AS "currentCustomers",
+          COALESCE((SELECT jsonb_agg(to_jsonb(cc) ORDER BY cc."occupiedAt" DESC) FROM current_customers cc), '[]'::jsonb) AS "currentCustomers",
           COALESCE((SELECT jsonb_agg(activity ORDER BY activity->>'createdAt' DESC)
            FROM (
              SELECT activity

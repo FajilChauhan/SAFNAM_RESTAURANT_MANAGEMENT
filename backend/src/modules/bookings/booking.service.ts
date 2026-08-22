@@ -15,6 +15,56 @@ import { prisma } from "../../database/prisma.js";
 
 const TERMINAL_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "NO_SHOW"];
 
+// ─── Slot computation helper ──────────────────────────────────────────────────
+const toMinutes = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const fromMinutes = (mins: number) => {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
+/**
+ * Given opening/closing times and a list of blocked slots (sorted by startTime),
+ * compute the list of free time windows within business hours.
+ */
+function computeAvailableSlots(
+  openingTime: string,
+  closingTime: string,
+  blockedSlots: Array<{ startTime: string; endTime: string }>,
+): Array<{ startTime: string; endTime: string }> {
+  const open = toMinutes(openingTime);
+  const close = toMinutes(closingTime);
+  const available: Array<{ startTime: string; endTime: string }> = [];
+
+  // Sort blocked slots by start
+  const sorted = [...blockedSlots].sort(
+    (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime),
+  );
+
+  let cursor = open;
+
+  for (const slot of sorted) {
+    const slotStart = toMinutes(slot.startTime);
+    const slotEnd = toMinutes(slot.endTime);
+
+    if (slotStart > cursor) {
+      available.push({ startTime: fromMinutes(cursor), endTime: fromMinutes(slotStart) });
+    }
+
+    cursor = Math.max(cursor, slotEnd);
+  }
+
+  if (cursor < close) {
+    available.push({ startTime: fromMinutes(cursor), endTime: fromMinutes(close) });
+  }
+
+  return available;
+}
+
 export class BookingService extends BaseService {
   constructor(
     private readonly bookingRepository: BookingRepository,
@@ -445,6 +495,120 @@ export class BookingService extends BaseService {
       members: dto.members,
       window,
     });
+  }
+
+  /**
+   * Returns slot-level availability for a specific table on a given date.
+   * Opening/closing times come from restaurant settings — never hardcoded.
+   */
+  async getTableSlotAvailability(tableId: string, date: string) {
+    const table = await this.bookingRepository.findTableById(tableId);
+    if (!table) {
+      throw new ApiError(404, "Table not found", ERROR_CODES.RESOURCE_NOT_FOUND);
+    }
+
+    const restaurant = table.floor.restaurant;
+    const { openingTime, closingTime } = restaurant;
+
+    // Parse the requested date as UTC midnight
+    const dateUtc = new Date(`${date}T00:00:00.000Z`);
+
+    const [bookings, activeOccupancy] = await Promise.all([
+      this.bookingRepository.findTableBookingsForDate(tableId, dateUtc),
+      this.bookingRepository.findActiveTableOccupancy(tableId),
+    ]);
+
+    // Build blocked slots from bookings
+    const blockedSlots = bookings.map((b) => ({
+      startTime: b.startTime,
+      endTime: b.endTime,
+      bookingId: b.id,
+      bookingNumber: b.bookingNumber,
+      status: b.status,
+      customerName: b.customer.fullName,
+    }));
+
+    // Compute available slots as gaps between blocked slots within business hours
+    const availableSlots = computeAvailableSlots(openingTime, closingTime, blockedSlots);
+
+    return {
+      table: {
+        id: table.id,
+        tableNumber: table.tableNumber,
+        capacity: table.capacity,
+        status: table.status,
+        floor: { id: table.floor.id, name: table.floor.name },
+      },
+      date,
+      openingTime,
+      closingTime,
+      bookings: blockedSlots,
+      blockedSlots: blockedSlots.map(({ startTime, endTime }) => ({ startTime, endTime })),
+      availableSlots,
+      activeOccupancy: activeOccupancy
+        ? {
+            bookingNumber: activeOccupancy.bookingNumber,
+            customerName: activeOccupancy.customer.fullName,
+            occupiedAt: activeOccupancy.checkedInAt?.toISOString() ?? null,
+            expectedEndTime: activeOccupancy.endTime,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Returns date-range availability for a specific room given check-in and check-out dates.
+   * Actual checkout (not time calculation) is the source of truth for OCCUPIED status.
+   */
+  async getRoomDateAvailability(roomId: string, checkIn: string, checkOut: string) {
+    const room = await this.bookingRepository.findRoomById(roomId);
+    if (!room) {
+      throw new ApiError(404, "Room not found", ERROR_CODES.RESOURCE_NOT_FOUND);
+    }
+
+    const checkInDate = new Date(`${checkIn}T00:00:00.000Z`);
+    const checkOutDate = new Date(`${checkOut}T00:00:00.000Z`);
+
+    if (checkOutDate <= checkInDate) {
+      throw new ApiError(400, "Check-out date must be after check-in date");
+    }
+
+    const [conflictingBookings, activeOccupancy] = await Promise.all([
+      this.bookingRepository.findRoomBookingsForPeriod(roomId, checkInDate, checkOutDate),
+      this.bookingRepository.findActiveRoomOccupancy(roomId),
+    ]);
+
+    const available = conflictingBookings.length === 0 && !activeOccupancy;
+
+    return {
+      room: {
+        id: room.id,
+        roomNumber: room.roomNumber,
+        roomType: room.roomType,
+        capacity: room.capacity,
+        pricePerDay: room.pricePerDay.toString(),
+        status: room.status,
+      },
+      requestedPeriod: { checkIn, checkOut },
+      conflictingBookings: conflictingBookings.map((b) => ({
+        bookingId: b.id,
+        bookingNumber: b.bookingNumber,
+        checkIn: b.bookingDate.toISOString().slice(0, 10),
+        checkOut: b.endAt.toISOString().slice(0, 10),
+        status: b.status,
+        customerName: b.customer.fullName,
+      })),
+      available,
+      activeOccupancy: activeOccupancy
+        ? {
+            bookingNumber: activeOccupancy.bookingNumber,
+            guestName: activeOccupancy.customer.fullName,
+            checkedInAt: activeOccupancy.checkedInAt?.toISOString() ?? null,
+            expectedCheckoutAt: activeOccupancy.endAt.toISOString(),
+            paymentStatus: (activeOccupancy as any).invoice?.status ?? "PENDING",
+          }
+        : null,
+    };
   }
 
   private async getExistingBooking(id: string) {

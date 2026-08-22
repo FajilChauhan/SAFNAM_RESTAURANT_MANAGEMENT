@@ -1,6 +1,7 @@
 import api from "./axios";
 
 export const kitchenApi = {
+  getDashboard: () => api.get("/api/kitchen/dashboard"),
   getQueue: () => api.get("/api/kitchen/queue"),
   getSummary: () => api.get("/api/kitchen/summary"),
   getPriorityOrders: () => api.get("/api/kitchen/queue", { params: { priority: true } }),

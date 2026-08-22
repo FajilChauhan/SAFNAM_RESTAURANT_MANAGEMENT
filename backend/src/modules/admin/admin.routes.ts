@@ -8,9 +8,9 @@ import { adminController } from "./admin.controller.js";
 
 export const adminRouter = Router();
 
-// Allow both ADMIN and MANAGER to pass initial authorization.
+// Staff roles reach the operation-level permission checks below.
 // Individual endpoints are protected dynamically by requireOperationPermission.
-adminRouter.use(authenticate, authorize(UserRole.ADMIN, UserRole.MANAGER));
+adminRouter.use(authenticate, authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.RECEPTION));
 const offerImageUpload = uploadService.createSingleUpload(imageUploadConfig("offers"));
 
 // Employees

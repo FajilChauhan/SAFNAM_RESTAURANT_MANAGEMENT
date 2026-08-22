@@ -263,4 +263,88 @@ export const bookingApi = {
   /** Get eligible offers for a booking configuration */
   getEligibleOffers: (params: { bookingType: BookingType; tableId?: string; roomId?: string }) =>
     api.get<{ success: true; data: { offers: AdminOffer[] } }>("/api/bookings/eligible-offers", { params }),
+
+  /**
+   * Get slot-level availability for a specific table on a given date.
+   * Returns opening/closing times from restaurant settings, all bookings, blocked slots,
+   * available slots, and active occupancy info.
+   */
+  getTableSlotAvailability: (tableId: string, date: string) =>
+    api.get<{ success: true; data: { availability: TableSlotAvailability } }>(
+      `/api/bookings/tables/${tableId}/availability`,
+      { params: { date } },
+    ),
+
+  /**
+   * Get date-range availability for a specific room given check-in / check-out dates.
+   * Returns conflicting bookings, available flag, and active occupancy info.
+   */
+  getRoomDateAvailability: (roomId: string, checkIn: string, checkOut: string) =>
+    api.get<{ success: true; data: { availability: RoomDateAvailability } }>(
+      `/api/bookings/rooms/${roomId}/availability`,
+      { params: { checkIn, checkOut } },
+    ),
+};
+
+// ─── New availability detail types ────────────────────────────────────────────
+
+export type TableSlotBooking = {
+  startTime: string;
+  endTime: string;
+  bookingId: string;
+  bookingNumber: string;
+  status: BookingStatus;
+  customerName: string;
+};
+
+export type TableSlotAvailability = {
+  table: {
+    id: string;
+    tableNumber: string;
+    capacity: number;
+    status: string;
+    floor: { id: string; name: string };
+  };
+  date: string;
+  openingTime: string;
+  closingTime: string;
+  bookings: TableSlotBooking[];
+  blockedSlots: Array<{ startTime: string; endTime: string }>;
+  availableSlots: Array<{ startTime: string; endTime: string }>;
+  activeOccupancy: {
+    bookingNumber: string;
+    customerName: string;
+    occupiedAt: string | null;
+    expectedEndTime: string;
+  } | null;
+};
+
+export type RoomConflictingBooking = {
+  bookingId: string;
+  bookingNumber: string;
+  checkIn: string;
+  checkOut: string;
+  status: BookingStatus;
+  customerName: string;
+};
+
+export type RoomDateAvailability = {
+  room: {
+    id: string;
+    roomNumber: string;
+    roomType: string;
+    capacity: number;
+    pricePerDay: string;
+    status: string;
+  };
+  requestedPeriod: { checkIn: string; checkOut: string };
+  conflictingBookings: RoomConflictingBooking[];
+  available: boolean;
+  activeOccupancy: {
+    bookingNumber: string;
+    guestName: string;
+    checkedInAt: string | null;
+    expectedCheckoutAt: string;
+    paymentStatus: string;
+  } | null;
 };

@@ -186,6 +186,76 @@ export class BookingRepository {
     });
   }
 
+  /** All non-terminal bookings for a specific table on a given calendar date (UTC). */
+  findTableBookingsForDate(tableId: string, date: Date) {
+    const dayStart = new Date(date);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+    return prisma.booking.findMany({
+      where: {
+        tableId,
+        status: { in: CONFLICT_STATUSES },
+        startAt: { lt: dayEnd },
+        endAt: { gt: dayStart },
+      },
+      include: {
+        customer: {
+          select: { id: true, fullName: true, phoneNumber: true, email: true },
+        },
+      },
+      orderBy: { startAt: "asc" },
+    });
+  }
+
+  /** All non-terminal bookings for a specific room that overlap the given period. */
+  findRoomBookingsForPeriod(roomId: string, checkIn: Date, checkOut: Date) {
+    return prisma.booking.findMany({
+      where: {
+        roomId,
+        status: { in: CONFLICT_STATUSES },
+        startAt: { lt: checkOut },
+        endAt: { gt: checkIn },
+      },
+      include: {
+        customer: {
+          select: { id: true, fullName: true, phoneNumber: true, email: true },
+        },
+      },
+      orderBy: { startAt: "asc" },
+    });
+  }
+
+  /** Currently CHECKED_IN booking for a table (active occupancy). */
+  findActiveTableOccupancy(tableId: string) {
+    return prisma.booking.findFirst({
+      where: { tableId, status: "CHECKED_IN" },
+      include: {
+        customer: {
+          select: { id: true, fullName: true, phoneNumber: true, email: true },
+        },
+      },
+      orderBy: { checkedInAt: "desc" },
+    });
+  }
+
+  /** Currently CHECKED_IN booking for a room (active occupancy). */
+  findActiveRoomOccupancy(roomId: string) {
+    return prisma.booking.findFirst({
+      where: { roomId, status: "CHECKED_IN" },
+      include: {
+        customer: {
+          select: { id: true, fullName: true, phoneNumber: true, email: true },
+        },
+        invoice: {
+          select: { status: true },
+        },
+      },
+      orderBy: { checkedInAt: "desc" },
+    });
+  }
+
   markNoShows(now: Date) {
     return prisma.booking.updateMany({
       where: {

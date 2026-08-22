@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChefHat, RefreshCw } from "lucide-react";
 import { dashboardApi } from "@/api/dashboard.api";
+import { kitchenApi } from "@/api/kitchen.api";
 import { orderApi } from "@/api/order.api";
 import type { KitchenDashboard, KitchenOrder } from "@/types/dashboard.types";
 import { DashboardError, DashboardSkeleton, RefreshLine } from "@/features/dashboard/DashboardShared";
@@ -43,13 +44,21 @@ export default function KitchenDashboardPage() {
 
   const query = useQuery({
     queryKey: ["kitchen-dashboard"],
-    queryFn: async () => (await dashboardApi.getKitchenDashboard()).data.data.dashboard,
+    queryFn: async () => (await kitchenApi.getDashboard()).data.data.dashboard,
     refetchInterval: 5000, // Real-time feel via 5s polling
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, nextStatus }: { orderId: string; nextStatus: string }) => {
-      await orderApi.updateOrderStatus(orderId, nextStatus);
+      if (nextStatus === "PREPARING") {
+        await kitchenApi.startPreparing(orderId);
+      } else if (nextStatus === "READY") {
+        await kitchenApi.markReady(orderId);
+      } else if (nextStatus === "SERVED") {
+        await kitchenApi.markServed(orderId);
+      } else {
+        await orderApi.updateOrderStatus(orderId, nextStatus);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kitchen-dashboard"] });
@@ -102,11 +111,12 @@ export default function KitchenDashboardPage() {
                     order={order}
                     onAction={() => {
                       const nextStatus = getNextOrderStatus(order.status ?? "");
-                      if (nextStatus && order.orderId) {
-                        updateStatusMutation.mutate({ orderId: order.orderId, nextStatus });
+                      const targetId = order.orderId || order.id;
+                      if (nextStatus && targetId) {
+                        updateStatusMutation.mutate({ orderId: targetId, nextStatus });
                       }
                     }}
-                    isPending={updateStatusMutation.isPending && updateStatusMutation.variables?.orderId === order.orderId}
+                    isPending={updateStatusMutation.isPending && (updateStatusMutation.variables?.orderId === order.orderId || updateStatusMutation.variables?.orderId === order.id)}
                   />
                 ))}
               </AnimatePresence>
